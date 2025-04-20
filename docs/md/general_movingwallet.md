@@ -12,10 +12,10 @@ Este documento tiene como objetivo servir como punto central de referencia para 
 
 Es especialmente útil para:
 
-- Organizar documentación viva del sistema.  
-- Detectar qué archivos deben actualizarse tras un cambio.  
-- Controlar errores, soluciones y nuevos hitos.  
-- Entrenar al asistente GPT sobre qué documento actualizar.  
+- Organizar documentación viva del sistema.
+- Detectar qué archivos deben actualizarse tras un cambio.
+- Controlar errores, soluciones y nuevos hitos.
+- Entrenar al asistente GPT sobre qué documento actualizar.
 
 
 

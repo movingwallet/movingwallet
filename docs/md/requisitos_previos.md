@@ -58,29 +58,29 @@ GITHUB\_TOKEN=
 
 **apps/frontend**
 
-- TailwindCSS funcionando  
-- RainbowKit renderiza conexión  
-- Hooks devuelven data con mocks o testnet  
-- Página IA responde desde /api/ia/suggest  
+- TailwindCSS funcionando
+- RainbowKit renderiza conexión
+- Hooks devuelven data con mocks o testnet
+- Página IA responde desde /api/ia/suggest
 
 **apps/gpt-backend**
 
-- .env configurado con claves reales  
-- Puede leer y escribir archivos .md   
+- .env configurado con claves reales
+- Puede leer y escribir archivos .md
 
 **packages/\***
 
-- Tipado de interfaces accesible  
-- Integraciones (coingecko, etherscan) funcionando  
-- Logger exportado para todas las apps  
+- Tipado de interfaces accesible
+- Integraciones (coingecko, etherscan) funcionando
+- Logger exportado para todas las apps
 
 
 
 📋 **En desarrollo**
 
-- Validación automática de .env con envalid o schema personalizado.  
-- Script check-env.ts para detectar claves faltantes antes de ejecutar.  
-- Health check para asegurar acceso a Pinecone, Google y OpenAI. 
+- Validación automática de .env con envalid o schema personalizado.
+- Script check-env.ts para detectar claves faltantes antes de ejecutar.
+- Health check para asegurar acceso a Pinecone, Google y OpenAI.
 
 - 📋 **ESTOS REQUISITOS SON UNA ORIENTACIÓN**
 

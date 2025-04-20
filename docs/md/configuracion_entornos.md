@@ -13,10 +13,10 @@ Aclarar qué entornos existen en MovingWallet, qué variables de entorno se util
 
 Esta guía es clave para:
 
-- Onboarding de nuevos devs  
-- QA sobre ambientes consistentes  
-- Control de builds y configuración  
-- Diagnóstico de fallos por entorno  
+- Onboarding de nuevos devs
+- QA sobre ambientes consistentes
+- Control de builds y configuración
+- Diagnóstico de fallos por entorno
 
 
 
@@ -79,16 +79,16 @@ NEXT\_PUBLIC\_ENV=local|staging|prod
 
 **Despliegue Frontend (frontend/)**
 
-- **Build:** pnpm turbo run build --filter=frontend  
-- **Deploy:** automático via GitHub Actions a Vercel.  
-- **Fallbacks configurados:** en vercel.json (redirecciones de rutas inválidas a 404.tsx).  
+- **Build:** pnpm turbo run build --filter=frontend
+- **Deploy:** automático via GitHub Actions a Vercel.
+- **Fallbacks configurados:** en vercel.json (redirecciones de rutas inválidas a 404.tsx).
 
 **Despliegue GPT Backend (gpt-backend/)**
 
-- **Build:** pnpm build  
-- **Deploy:** Railway / Render / Supabase Functions (según configuración).  
+- **Build:** pnpm build
+- **Deploy:** Railway / Render / Supabase Functions (según configuración).
 
-**Fallback:** Middleware de error por defecto (server.ts):   app.use((err, req, res, next) => {
+**Fallback:** Middleware de error por defecto (server.ts): app.use((err, req, res, next) => {
 
 `  `logger.error("Unhandled error", { err });
 
@@ -101,24 +101,24 @@ NEXT\_PUBLIC\_ENV=local|staging|prod
 
 📊 **Control de errores en entornos reales**
 
-- **Frontend**:  
-  - Validaciones de red (chainId) al cargar.  
-  - Logs de consola filtrados por entorno (if (process.env.NODE\_ENV === 'development')).  
-  - En producción: soporte para Sentry (opcional vía @movingwallet/logger).  
-- **Backend GPT**:  
-  - Logs estructurados por entorno.  
-  - Registro de errores de integración (GitHub, Pinecone, OpenAI).  
-  - Control de cuotas (rateLimitExceeded → retry automático o fallback).  
-  - Endpoint /health para verificar servicios externos.  
+- **Frontend**:
+  - Validaciones de red (chainId) al cargar.
+  - Logs de consola filtrados por entorno (if (process.env.NODE\_ENV === 'development')).
+  - En producción: soporte para Sentry (opcional vía @movingwallet/logger).
+- **Backend GPT**:
+  - Logs estructurados por entorno.
+  - Registro de errores de integración (GitHub, Pinecone, OpenAI).
+  - Control de cuotas (rateLimitExceeded → retry automático o fallback).
+  - Endpoint /health para verificar servicios externos.
 
 
 
 🔁 **Recomendaciones**
 
-- Usar dotenv-flow o dotenv-cli para gestionar múltiples entornos.  
-- Validar que todas las claves estén cargadas correctamente en CI (dotenv-linter, envalid).  
-- Crear script check-env.ts para validar campos requeridos antes del build.  
-- Mantener staging sincronizado con producción, salvo claves críticas (ej: OpenAI).  
+- Usar dotenv-flow o dotenv-cli para gestionar múltiples entornos.
+- Validar que todas las claves estén cargadas correctamente en CI (dotenv-linter, envalid).
+- Crear script check-env.ts para validar campos requeridos antes del build.
+- Mantener staging sincronizado con producción, salvo claves críticas (ej: OpenAI).
 
 
 

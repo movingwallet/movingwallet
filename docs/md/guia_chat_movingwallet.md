@@ -7,7 +7,7 @@
 
 💬 **guia\_chat\_movingwallet.md**
 
-**Guía de Uso del Asistente ChatGPT en el Proyecto MovingWallet**  *Versión: Colaborativa – Actualizada constantemente desde el propio chat*
+**Guía de Uso del Asistente ChatGPT en el Proyecto MovingWallet** *Versión: Colaborativa – Actualizada constantemente desde el propio chat*
 
 
 
@@ -15,7 +15,7 @@
 
 Este documento explica **cómo aprovechar al máximo el asistente ChatGPT integrado en el flujo de trabajo de MovingWallet**, ya sea para desarrollo, documentación, estrategia, decisiones técnicas o roadmap.
 
-La guía se construye sobre la filosofía:  **"Desarrollo asistido, decisiones compartidas."**
+La guía se construye sobre la filosofía: **"Desarrollo asistido, decisiones compartidas."**
 
 
 
@@ -36,10 +36,10 @@ La guía se construye sobre la filosofía:  **"Desarrollo asistido, decisiones
 
 🚫 **¿Qué no puede (aún) hacer?**
 
-- No puede conectarse directamente a servicios como GitHub, Vercel o Firebase (solo los analiza si se le da acceso al contenido)  
-- No ejecuta código en producción  
-- No interactúa con wallets reales  
-- No puede recuperar datos si no se han subido explícitamente (ZIP, .md, .js…)  
+- No puede conectarse directamente a servicios como GitHub, Vercel o Firebase (solo los analiza si se le da acceso al contenido)
+- No ejecuta código en producción
+- No interactúa con wallets reales
+- No puede recuperar datos si no se han subido explícitamente (ZIP, .md, .js…)
 
 
 
@@ -81,10 +81,10 @@ Actualiza `resumen\_objetivos.md` con los últimos cambios del roadmap y genera 
 
 🔄 **¿Cómo actualizar documentos desde el chat?**
 
-1. Di: Actualiza el archivo roadmap.md o Genera roadmap.md desde cero  
-1. El asistente generará el contenido dentro del chat y **también puede crear un archivo descargable .md**  
-1. Puedes pedir que lo inserte dentro de un ZIP para exportación completa  
-1. El histórico de cambios puede incluirse como historial\_cambios.md si se solicita   
+1. Di: Actualiza el archivo roadmap.md o Genera roadmap.md desde cero
+1. El asistente generará el contenido dentro del chat y **también puede crear un archivo descargable .md**
+1. Puedes pedir que lo inserte dentro de un ZIP para exportación completa
+1. El histórico de cambios puede incluirse como historial\_cambios.md si se solicita
 
 
 

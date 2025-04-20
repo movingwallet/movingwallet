@@ -70,13 +70,13 @@
 
 🔗 **Flujo de Conexión con WalletConnect v2**
 
-1. Usuario hace clic en “Conectar cuenta”  
-1. Se abre el modal de RainbowKit → conecta vía WC v2  
-1. Se obtiene address[] y chainId  
-1. Cada dirección se almacena localmente y se visualiza en Sidebar  
-1. Se lanza getTokenBalances() y getNftsForOwner() para cada chainId  
-1. La información se agrupa y se renderiza por cuenta/red  
-1. Si se desconecta la wallet → se actualiza automáticamente la interfaz  
+1. Usuario hace clic en “Conectar cuenta”
+1. Se abre el modal de RainbowKit → conecta vía WC v2
+1. Se obtiene address[] y chainId
+1. Cada dirección se almacena localmente y se visualiza en Sidebar
+1. Se lanza getTokenBalances() y getNftsForOwner() para cada chainId
+1. La información se agrupa y se renderiza por cuenta/red
+1. Si se desconecta la wallet → se actualiza automáticamente la interfaz
 
 
 
@@ -84,10 +84,10 @@
 
 **Flujos actuales:**
 
-- El usuario puede consultar un “resumen” del portafolio → se genera un prompt con los tokens y NFTs  
-- Se envía a una API (ej: OpenAI / OpenRouter) con instrucciones preformateadas  
-- El modelo responde con análisis, sugerencias o resumen personalizado  
-- La respuesta se muestra en pantalla en un panel IA contextual  
+- El usuario puede consultar un “resumen” del portafolio → se genera un prompt con los tokens y NFTs
+- Se envía a una API (ej: OpenAI / OpenRouter) con instrucciones preformateadas
+- El modelo responde con análisis, sugerencias o resumen personalizado
+- La respuesta se muestra en pantalla en un panel IA contextual
 
 **Tipos de interacción previstos:**
 
@@ -101,9 +101,9 @@
 
 **Próxima fase**:
 
-- Añadir memoria a las consultas para seguimiento histórico  
-- Validación previa de acciones con usuario ("¿confirmas enviar todo a wallet B?")  
-- Integración de IA nativa (modelo privado en contenedor opcional)  
+- Añadir memoria a las consultas para seguimiento histórico
+- Validación previa de acciones con usuario ("¿confirmas enviar todo a wallet B?")
+- Integración de IA nativa (modelo privado en contenedor opcional)
 
 
 
