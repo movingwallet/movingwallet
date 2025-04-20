@@ -1,0 +1,59 @@
+# 🚫 Archivos del sistema y temporales
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+
+# 🧠 Archivos de entorno sensibles
+.env
+.env.*
+!.env.example
+
+# 🧱 Node.js / pnpm / turborepo
+node_modules/
+.pnpm/
+.cache/
+turbo/
+dist/
+build/
+
+# 📦 Salidas de compilación de frontend/backend
+apps/*/out/
+apps/*/build/
+apps/*/dist/
+apps/*/.next/
+apps/*/.vercel/
+
+# 📊 Cobertura de tests
+coverage/
+.nyc_output/
+.vitest/
+cypress/videos/
+cypress/screenshots/
+
+# 🧪 Tests y snapshots
+__tests__/
+*.test.ts
+*.spec.ts
+*.snap
+
+# ⚙️ IDEs y configuraciones locales
+.vscode/
+.idea/
+*.code-workspace
+
+# 📚 Documentación generada o privada
+docs/*.pdf
+docs/*.local.md
+docs/backup/
+
+# 💸 Archivos sensibles o temporales
+*.api.key
+*.secrets.json
+*.bak
+*.tmp
+*.orig
+
+# 🧠 Vector stores o logs IA locales
+*.embedding.db
+vector_store/
