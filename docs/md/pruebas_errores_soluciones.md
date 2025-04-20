@@ -31,8 +31,8 @@ Cada entrada sigue el formato:
 
 🔗 **Integración con Issues (GitHub)**
 
-- Las entradas con [#...] pueden enlazarse a issues en GitHub o tickets de Notion  
-- Las entradas deben reflejar el **resultado real del fix** (build pasó, error desapareció, test cubierto, etc.)  
+- Las entradas con [#...] pueden enlazarse a issues en GitHub o tickets de Notion
+- Las entradas deben reflejar el **resultado real del fix** (build pasó, error desapareció, test cubierto, etc.)
 
 
 
@@ -55,14 +55,14 @@ Vamos a dividir por tipo de datos para que tengas una estrategia clara sobre **d
 
 📦 **1. Tokens y credenciales (**⚠️ **sensibles)**
 
-**Ubicación:**  movingwallet/.env  movingwallet/.env.development  movingwallet/.env.production
+**Ubicación:** movingwallet/.env movingwallet/.env.development movingwallet/.env.production
 
 **Datos típicos:**
 
-- GITHUB\_TOKEN=...  
-- VERCEL\_API\_KEY=...  
-- OPENAI\_API\_KEY=...  
-- WALLETCONNECT\_PROJECT\_ID=...  
+- GITHUB\_TOKEN=...
+- VERCEL\_API\_KEY=...
+- OPENAI\_API\_KEY=...
+- WALLETCONNECT\_PROJECT\_ID=...
 
 **Buena práctica:** usar[ dotenv-flow](https://www.npmjs.com/package/dotenv-flow) para múltiples entornos y evitar subidas accidentales (reflejado en .gitignore).
 
@@ -72,18 +72,18 @@ Vamos a dividir por tipo de datos para que tengas una estrategia clara sobre **d
 
 **Ubicación recomendada:**
 
-- packages/logger/ → módulo unificado  
-- Exporta logs desde:  
-  - apps/frontend/ (errores UI)  
-  - apps/gpt-backend/ (acciones IA)  
-  - apps/hardhat/ (transacciones)  
+- packages/logger/ → módulo unificado
+- Exporta logs desde:
+  - apps/frontend/ (errores UI)
+  - apps/gpt-backend/ (acciones IA)
+  - apps/hardhat/ (transacciones)
 
 **Backends sugeridos:**
 
-- Desarrollo local: console.log, fs.appendFile  
-- Producción:  
-  - Sentry (frontend/backend)  
-  - Datadog, Logtail, o CloudWatch  
+- Desarrollo local: console.log, fs.appendFile
+- Producción:
+  - Sentry (frontend/backend)
+  - Datadog, Logtail, o CloudWatch
 
 **Ejemplo de uso:**
 
@@ -102,26 +102,26 @@ logger.info("Conexión exitosa con GitHub", { repo })
 
 🌐 **3. Logs del GPT-backend (acciones, errores, validaciones)**
 
-**Ubicación local:**  apps/gpt-backend/logs/ (por si querés un fallback local)
+**Ubicación local:** apps/gpt-backend/logs/ (por si querés un fallback local)
 
 **Monitoreo:**
 
-- Prometheus + Grafana (si hacés tracking semántico de acciones)  
-- Sentry para capturar errores al ejecutar acciones como leer\_google\_sheet o indexar\_md\_pinecone  
+- Prometheus + Grafana (si hacés tracking semántico de acciones)
+- Sentry para capturar errores al ejecutar acciones como leer\_google\_sheet o indexar\_md\_pinecone
 
 
 
 🚀 **4. Deploy y métricas de Vercel**
 
-- Vercel ya guarda **logs de compilación y errores** accesibles desde la web:  
-  - vercel.com/<tu-proyecto>/deployments  
+- Vercel ya guarda **logs de compilación y errores** accesibles desde la web:
+  - vercel.com/<tu-proyecto>/deployments
 
 **Si querés trackearlo desde código:**
 
-- Podés usar la Vercel REST API para:  
-  - Consultar despliegues  
-  - Obtener logs  
-  - Verificar rollback o canary deploy  
+- Podés usar la Vercel REST API para:
+  - Consultar despliegues
+  - Obtener logs
+  - Verificar rollback o canary deploy
 
 
 

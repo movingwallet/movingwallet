@@ -1,0 +1,196 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+      "title": "MovingWallet – GPT Actions API",
+      "version": "1.0.0",
+      "description": "Todas las acciones programables del backend GPT de MovingWallet"
+    },
+    "servers": [
+      { "url": "https://app.movingwallet.io" }
+    ],
+    "paths": {
+      "/api/ping": {
+        "post": {
+          "operationId": "ping_gpt_backend",
+          "summary": "Test de conexión backend GPT",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": { "type": "string" }
+                  },
+                  "required": ["mensaje"]
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Echo de prueba",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "respuesta": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      // 👇 Continúa aquí copiando los bloques de los otros 14 endpoints
+"paths": {
+  "/api/ping": {
+    "post": {
+      "operationId": "ping_gpt_backend",
+      "summary": "Verifica conexión con el backend",
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "mensaje": { "type": "string" }
+              },
+              "required": ["mensaje"]
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Echo desde el backend",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "respuesta": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/github-file": {
+    "post": {
+      "operationId": "leer_archivo_github",
+      "summary": "Lee archivo crudo desde GitHub",
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "url": { "type": "string" }
+              },
+              "required": ["url"]
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Contenido del archivo",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contenido": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/leer-md": {
+    "post": {
+      "operationId": "leer_archivo_markdown_local",
+      "summary": "Lee archivo markdown desde /docs/md",
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "archivo": { "type": "string" }
+              },
+              "required": ["archivo"]
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Contenido markdown",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contenido": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/api/crear-entrada": {
+    "post": {
+      "operationId": "crear_nueva_entrada_diario",
+      "summary": "Agrega línea al final de archivo markdown",
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "archivo": { "type": "string" },
+                "texto": { "type": "string" }
+              },
+              "required": ["archivo", "texto"]
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Confirmación",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "archivo": { "type": "string" },
+                  "texto": { "type": "string" },
+                  "status": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+    }
+  }
+  

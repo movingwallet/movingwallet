@@ -18,15 +18,15 @@ Documentar las políticas de **seguridad**, **modelo de no-custodia** y **privac
 
 🔑 **Claves privadas y control de fondos**
 
-- **MovingWallet es 100% no-custodial**:  La aplicación **nunca accede ni almacena claves privadas** del usuario.  
-- Todas las interacciones blockchain son firmadas por el usuario a través de su propia wallet (ej: MetaMask, Rabby, Ledger).  
-- El protocolo **WalletConnect v2** permite conexiones seguras desde dispositivos móviles o hardware wallets sin exponer llaves.  
+- **MovingWallet es 100% no-custodial**: La aplicación **nunca accede ni almacena claves privadas** del usuario.
+- Todas las interacciones blockchain son firmadas por el usuario a través de su propia wallet (ej: MetaMask, Rabby, Ledger).
+- El protocolo **WalletConnect v2** permite conexiones seguras desde dispositivos móviles o hardware wallets sin exponer llaves.
 
 🧠 **Autenticación**
 
-- **No se requiere login ni correo** para usar la app.  
-- La identidad del usuario se basa únicamente en las direcciones públicas conectadas vía WalletConnect o extensiones compatibles.  
-- Futuras versiones podrían incluir autenticación opcional para IA personalizada (OAuth / Lens).  
+- **No se requiere login ni correo** para usar la app.
+- La identidad del usuario se basa únicamente en las direcciones públicas conectadas vía WalletConnect o extensiones compatibles.
+- Futuras versiones podrían incluir autenticación opcional para IA personalizada (OAuth / Lens).
 
 
 
@@ -44,16 +44,16 @@ Las llamadas a APIs externas no incluyen datos personales —solo dirección pú
 
 ✅ **Validaciones al interactuar con contratos**
 
-- Todas las transacciones deben ser confirmadas por el usuario en su wallet.  
-- Se validan:  
-  - **Red activa** vs red del contrato.  
-  - **Gas estimado** antes de enviar (eth\_estimateGas).  
-  - **Dirección válida** en transferencias.  
-  - **Saldo suficiente** para cubrir la acción.  
-- En caso de errores, se captura:  
-  - El mensaje de error de la wallet o el RPC.  
-  - La acción que lo generó (para debugging).  
-  - No se persisten logs con dirección o tokens del usuario.  
+- Todas las transacciones deben ser confirmadas por el usuario en su wallet.
+- Se validan:
+  - **Red activa** vs red del contrato.
+  - **Gas estimado** antes de enviar (eth\_estimateGas).
+  - **Dirección válida** en transferencias.
+  - **Saldo suficiente** para cubrir la acción.
+- En caso de errores, se captura:
+  - El mensaje de error de la wallet o el RPC.
+  - La acción que lo generó (para debugging).
+  - No se persisten logs con dirección o tokens del usuario.
 
 
 
@@ -70,13 +70,13 @@ Las llamadas a APIs externas no incluyen datos personales —solo dirección pú
 
 🔒 **Privacidad y anonimato**
 
-- **No se usa analytics de terceros (GA, Segment, etc.)**  
-- **No se guarda historial del usuario en servidores**.  
-- Datos como tokens, balances o IA se generan en tiempo real y se descartan tras cerrar sesión.  
-- La única persistencia es local (almacenamiento en navegador):  
-  - Dirección conectada  
-  - Redes visibles  
-  - Últimos prompts IA (opcional, desactivable)  
+- **No se usa analytics de terceros (GA, Segment, etc.)**
+- **No se guarda historial del usuario en servidores**.
+- Datos como tokens, balances o IA se generan en tiempo real y se descartan tras cerrar sesión.
+- La única persistencia es local (almacenamiento en navegador):
+  - Dirección conectada
+  - Redes visibles
+  - Últimos prompts IA (opcional, desactivable)
 
 
 
@@ -94,11 +94,11 @@ Las llamadas a APIs externas no incluyen datos personales —solo dirección pú
 
 🧪 **Checklist de Seguridad QA**
 
-- El frontend no expone claves en consola.  
-- Las llamadas a OpenAI no incluyen dirección explícita.  
-- Todos los contratos son verificados en testnets.  
-- Los tokens spam son detectados y bloqueados correctamente.  
-- Los errores de red están gestionados con fallback visible.  
+- El frontend no expone claves en consola.
+- Las llamadas a OpenAI no incluyen dirección explícita.
+- Todos los contratos son verificados en testnets.
+- Los tokens spam son detectados y bloqueados correctamente.
+- Los errores de red están gestionados con fallback visible.
 
 
 
