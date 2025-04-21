@@ -1,25 +1,28 @@
-import express from "express";
-const router = express.Router();
+import { Router } from "express";
+import { OpenAI } from "openai";
+import dotenv from "dotenv";
+dotenv.config();
 
-router.post("/api/commit", async (req, res) => {
+const router = Router();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+router.post("/commit", async (req, res) => {
+  const { resumen } = req.body;
+  if (!resumen) return res.status(400).json({ error: "Resumen requerido" });
+
   try {
-    const { resumen } = req.body;
+    const prompt = `Crea un mensaje de commit corto y semántico para: ${resumen}`;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7
+    });
 
-    if (!resumen || resumen.length < 5) {
-      return res.status(400).json({ error: "Falta el resumen o es muy corto" });
-    }
-
-    const tipo = resumen.toLowerCase().includes("error") ? "fix" :
-                 resumen.toLowerCase().includes("docs") ? "docs" :
-                 resumen.toLowerCase().includes("test") ? "test" :
-                 resumen.toLowerCase().includes("refactor") ? "refactor" :
-                 resumen.toLowerCase().includes("estructura") ? "chore" : "feat";
-
-    const mensaje = `${tipo}: ${resumen.charAt(0).toUpperCase() + resumen.slice(1)}`;
-
-    return res.json({ commit: mensaje });
+    const mensaje = completion.choices[0].message?.content;
+    res.json({ commit: mensaje?.trim() });
   } catch (error) {
-    return res.status(500).json({ error: "Error generando commit message" });
+    console.error("Error generando commit:", error);
+    res.status(500).json({ error: "Fallo al generar commit" });
   }
 });
 

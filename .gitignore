@@ -3,6 +3,9 @@
 Thumbs.db
 *.log
 *.swp
+*.bak
+*.tmp
+*.orig
 
 # 🧠 Archivos de entorno sensibles
 .env
@@ -23,6 +26,8 @@ apps/*/build/
 apps/*/dist/
 apps/*/.next/
 apps/*/.vercel/
+.vercel/
+.next/
 
 # 📊 Cobertura de tests
 coverage/
@@ -50,9 +55,6 @@ docs/backup/
 # 💸 Archivos sensibles o temporales
 *.api.key
 *.secrets.json
-*.bak
-*.tmp
-*.orig
 
 # 🧠 Vector stores o logs IA locales
 *.embedding.db
