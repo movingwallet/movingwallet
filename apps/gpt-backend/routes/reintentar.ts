@@ -1,20 +1,16 @@
-import express from "express";
-const router = express.Router();
+import { Router } from "express";
+const router = Router();
 
-// Esta versión es solo una simulación, ideal para pruebas
-router.post("/api/reintentar", async (req, res) => {
+router.post("/reintentar", async (req, res) => {
   const { nombreAccion, input } = req.body;
-
   if (!nombreAccion || !input) {
-    return res.status(400).json({ error: "Faltan campos: nombreAccion o input" });
+    return res.status(400).json({ error: "Faltan parámetros" });
   }
 
-  // Simulación de reintento
-  return res.json({
-    status: "🔁 Acción reenviada (simulado)",
-    nombreAccion,
-    input
-  });
+  console.log(`🔁 Reintentando acción ${nombreAccion} con input:`, input);
+
+  // Mock temporal: solo devuelve el input recibido
+  res.json({ status: "reintentado (mock)", nombreAccion, input });
 });
 
 export default router;
