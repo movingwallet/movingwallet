@@ -9,7 +9,7 @@ router.post("/google-excel", async (req, res) => {
 
   console.log("📥 Tarea recibida:", { tarea, prioridad, fecha });
 
-  // Aquí iría integración con Google Sheets real
+  // Aquí iría integración real con Google Sheets (fase futura)
   res.json({ status: "Tarea agregada (mock)", tarea });
 });
 

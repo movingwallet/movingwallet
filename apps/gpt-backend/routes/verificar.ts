@@ -1,20 +1,18 @@
-import express from "express";
-const router = express.Router();
+import { Router } from "express";
+const router = Router();
 
-// Simulación para demo inicial
-router.post("/api/verificar", async (req, res) => {
+router.post("/verificar", async (req, res) => {
   const { accion, resultadoEsperado } = req.body;
-
   if (!accion || !resultadoEsperado) {
-    return res.status(400).json({ error: "Faltan campos: accion o resultadoEsperado" });
+    return res.status(400).json({ error: "Faltan parámetros" });
   }
 
-  // Lógica dummy por ahora: simula verificación exitosa
-  return res.json({
-    status: "✅ Verificación exitosa",
-    accion,
-    resultadoEsperado
-  });
+  console.log("✅ Verificando resultado esperado para:", accion);
+
+  // Aquí se haría validación real con GitHub, Pinecone, etc.
+  const status = "ok (mock)";
+
+  res.json({ status, accion });
 });
 
 export default router;
