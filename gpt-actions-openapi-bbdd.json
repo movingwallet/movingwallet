@@ -1,0 +1,430 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MovingWallet – GPT Actions API",
+    "version": "2.0.1",
+    "description": "API completa para integración con GPT Actions",
+    "x-logo": {
+      "url": "https://movingwallet.io/logo.svg"
+    },
+    "externalDocs": {
+      "url": "https://github.com/movingwallet/docs",
+      "description": "Documentación técnica"
+    }
+  },
+  "servers": [
+    { "url": "https://app.movingwallet.io", "description": "Producción" }
+  ],
+  "tags": [
+    { "name": "Sistema", "description": "Endpoints básicos del sistema" },
+    { "name": "GitHub", "description": "Operaciones con repositorios" },
+    { "name": "Documentación", "description": "Procesamiento de documentación" },
+    { "name": "Diario", "description": "Gestión de entradas diarias" },
+    { "name": "Búsqueda", "description": "Búsqueda en documentos" },
+    { "name": "Google", "description": "Integración con Google Workspace" },
+    { "name": "Verificación", "description": "Validación de resultados" },
+    { "name": "Inteligencia", "description": "Funciones avanzadas de IA" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-token",
+        "description": "Token de acceso unificado para todas las APIs"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "code": { "type": "integer" },
+          "details": { "type": "string" }
+        },
+        "required": ["error", "code"]
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" },
+          "data": { "type": "object" }
+        },
+        "required": ["success"]
+      },
+      "PineconeQuery": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" },
+          "namespace": { "type": "string" },
+          "topK": { 
+            "type": "integer",
+            "default": 5
+          }
+        },
+        "required": ["query"]
+      },
+      "GoogleSheetRequest": {
+        "type": "object",
+        "properties": {
+          "spreadsheetId": { "type": "string" },
+          "range": { "type": "string" }
+        },
+        "required": ["spreadsheetId"]
+      },
+      "MarkdownContent": {
+        "type": "object",
+        "properties": {
+          "content": { "type": "string" },
+          "metadata": { "type": "object" }
+        },
+        "required": ["content"]
+      }
+    }
+  },
+  "paths": {
+    "/api/ping": {
+      "post": {
+        "tags": ["Sistema"],
+        "operationId": "verificar_conexion",
+        "summary": "Verifica conexión con el backend",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mensaje": { "type": "string", "example": "ping" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta de conexión exitosa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "respuesta": { "type": "string", "example": "pong" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/github": {
+      "post": {
+        "tags": ["GitHub"],
+        "operationId": "operaciones_github",
+        "security": [{"apiToken": []}],
+        "summary": "Operaciones con GitHub",
+        "description": "Endpoint genérico para operaciones con GitHub",
+        "responses": {
+          "200": {
+            "description": "Operación exitosa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/markdown": {
+      "post": {
+        "tags": ["Documentación"],
+        "operationId": "procesar_markdown",
+        "security": [{"apiToken": []}],
+        "summary": "Procesamiento de markdown",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkdownContent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Procesamiento exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/crear-entrada": {
+      "post": {
+        "tags": ["Diario"],
+        "operationId": "crear_nueva_entrada_diario",
+        "security": [{"apiToken": []}],
+        "summary": "Crear nueva entrada en diario",
+        "responses": {
+          "200": {
+            "description": "Entrada creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/buscar-pinecone": {
+      "post": {
+        "tags": ["Búsqueda"],
+        "operationId": "buscar_en_documentos",
+        "security": [{"apiToken": []}],
+        "summary": "Buscar en documentos Pinecone",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PineconeQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultados de búsqueda",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/generar-commit": {
+      "post": {
+        "tags": ["GitHub"],
+        "operationId": "generar_commit_mensaje",
+        "security": [{"apiToken": []}],
+        "summary": "Generar mensaje de commit",
+        "responses": {
+          "200": {
+            "description": "Mensaje generado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agregar-tarea-excel": {
+      "post": {
+        "tags": ["Google"],
+        "operationId": "agregar_tarea_excel",
+        "security": [{"apiToken": []}],
+        "summary": "Agregar tarea a Google Excel",
+        "responses": {
+          "200": {
+            "description": "Tarea agregada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leer-google-sheet": {
+      "post": {
+        "tags": ["Google"],
+        "operationId": "leer_google_sheet",
+        "security": [{"apiToken": []}],
+        "summary": "Leer datos de Google Sheet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSheetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Datos obtenidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/verificar-resultado": {
+      "post": {
+        "tags": ["Verificación"],
+        "operationId": "verificar_resultado_accion",
+        "security": [{"apiToken": []}],
+        "summary": "Verificar resultado de acción",
+        "responses": {
+          "200": {
+            "description": "Resultado verificado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reintentar-accion": {
+      "post": {
+        "tags": ["Verificación"],
+        "operationId": "reintentar_accion",
+        "security": [{"apiToken": []}],
+        "summary": "Reintentar acción fallida",
+        "responses": {
+          "200": {
+            "description": "Acción reintentada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/resumir-estado": {
+      "post": {
+        "tags": ["Inteligencia"],
+        "operationId": "resumir_estado_actual",
+        "security": [{"apiToken": []}],
+        "summary": "Resumir estado actual",
+        "responses": {
+          "200": {
+            "description": "Resumen generado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/verificar-consistencia": {
+      "post": {
+        "tags": ["Documentación"],
+        "operationId": "verificar_consistencia_documentacion",
+        "security": [{"apiToken": []}],
+        "summary": "Verificar consistencia documentación",
+        "responses": {
+          "200": {
+            "description": "Verificación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/generar-pitch": {
+      "post": {
+        "tags": ["Inteligencia"],
+        "operationId": "generar_presentacion_pitch",
+        "security": [{"apiToken": []}],
+        "summary": "Generar presentación pitch",
+        "responses": {
+          "200": {
+            "description": "Pitch generado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gpt-inteligente": {
+      "post": {
+        "tags": ["Inteligencia"],
+        "operationId": "gpt_acceso_inteligente",
+        "security": [{"apiToken": []}],
+        "summary": "Acceso inteligente a GPT",
+        "responses": {
+          "200": {
+            "description": "Operación completada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leer-google-doc": {
+      "post": {
+        "tags": ["Google"],
+        "operationId": "leer_google_doc",
+        "security": [{"apiToken": []}],
+        "summary": "Leer documento de Google Docs",
+        "responses": {
+          "200": {
+            "description": "Documento leído",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
