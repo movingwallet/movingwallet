@@ -1,0 +1,73 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MovingWallet – GPT Actions API",
+    "version": "2.0.1",
+    "description": "API completa para integración con GPT Actions",
+    "x-logo": {
+      "url": "https://movingwallet.io/logo.svg"
+    },
+    "externalDocs": {
+      "url": "https://github.com/movingwallet/docs",
+      "description": "Documentación técnica"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://app.movingwallet.io",
+      "description": "Producción"
+    }
+  ],
+  "tags": [
+    { "name": "Sistema", "description": "Endpoints básicos del sistema" },
+    { "name": "GitHub", "description": "Operaciones con repositorios" },
+    { "name": "Documentación", "description": "Procesamiento de documentación" },
+    { "name": "Diario", "description": "Gestión de entradas diarias" },
+    { "name": "Búsqueda", "description": "Búsqueda en documentos" },
+    { "name": "Google", "description": "Integración con Google Workspace" },
+    { "name": "Verificación", "description": "Validación de resultados" },
+    { "name": "Inteligencia", "description": "Funciones avanzadas de IA" }
+  ],
+  "paths": {
+    "/api/ping": {
+      "post": {
+        "tags": ["Sistema"],
+        "operationId": "verificar_conexion",
+        "summary": "Verifica conexión con el backend",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mensaje": {
+                    "type": "string",
+                    "example": "ping"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta de conexión exitosa",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "respuesta": {
+                      "type": "string",
+                      "example": "pong"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
 import { validateApiToken } from "./middleware/auth";
 import { connectToDatabase } from "./config/database";
 
@@ -26,33 +25,32 @@ import googleDocRoute from "./routes/googleDoc";
 
 // Cargar variables de entorno
 dotenv.config();
+
+// Configuración inicial
 const API_TOKENS = process.env.API_TOKENS?.split(',') || [];
 const PORT = process.env.PORT || 3000;
 
 // Inicializar Express
 const app = express();
 
-// Middlewares base
+// Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 📂 Servir archivos estáticos como el OpenAPI JSON
-app.use(express.static(path.join(__dirname, "public")));
-
-// Conexión a base de datos (si aplica)
+// Conexión a base de datos (si es necesaria)
 connectToDatabase().catch(err => {
-  console.error("❌ Error en la conexión a la base de datos:", err);
+  console.error("Database connection error:", err);
   process.exit(1);
 });
 
-// Autenticación excepto en /api/ping y acceso al OpenAPI JSON
+// Middleware de autenticación para todas las rutas excepto /api/ping
 app.use((req, res, next) => {
-  if (req.path === '/api/ping' || req.path === '/gpt-actions-openapi-bbdd.json') return next();
+  if (req.path === '/api/ping') return next();
   validateApiToken(req, res, next);
 });
 
-// Rutas registradas
+// Registrar rutas
 app.use("/api", pingRoute);
 app.use("/api", githubRoute);
 app.use("/api", markdownRoute);
@@ -71,7 +69,7 @@ app.use("/api", googleDocRoute);
 
 // Manejador de errores global
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("❌ Error:", err.stack);
+  console.error(err.stack);
   res.status(500).json({
     error: "Internal Server Error",
     code: 500,
@@ -82,7 +80,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`✅ GPT-backend corriendo en http://localhost:${PORT}`);
-  console.log(`🔗 OpenAPI disponible en /gpt-actions-openapi-bbdd.json`);
   console.log(`🔑 Tokens API permitidos: ${API_TOKENS.length}`);
 });
 
