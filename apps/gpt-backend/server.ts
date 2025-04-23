@@ -2,8 +2,10 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
-import { validateApiToken } from "./middleware/auth";
+
 import { connectToDatabase } from "./config/database";
+import { validateApiToken } from "./middleware/auth";
+import { registrarLogAutomatico } from "./middleware/logger";
 
 // Rutas básicas
 import pingRoute from "./routes/ping";
@@ -37,7 +39,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 📂 Servir archivos estáticos como el OpenAPI JSON
+// Registrar logs automáticamente (antes de la auth si se desea capturar todo)
+app.use(registrarLogAutomatico);
+
+// Servir archivos estáticos como el OpenAPI JSON
 app.use(express.static(path.join(__dirname, "public")));
 
 // Conexión a base de datos (si aplica)
@@ -46,13 +51,13 @@ connectToDatabase().catch(err => {
   process.exit(1);
 });
 
-// Autenticación excepto en /api/ping y acceso al OpenAPI JSON
+// Autenticación (excluye ping y OpenAPI)
 app.use((req, res, next) => {
   if (req.path === '/api/ping' || req.path === '/gpt-actions-openapi-bbdd.json') return next();
   validateApiToken(req, res, next);
 });
 
-// Rutas registradas
+// Registrar rutas de API
 app.use("/api", pingRoute);
 app.use("/api", githubRoute);
 app.use("/api", markdownRoute);
