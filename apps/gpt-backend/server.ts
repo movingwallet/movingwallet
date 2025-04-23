@@ -25,6 +25,9 @@ import consistenciaRoute from "./routes/consistencia";
 import pitchRoute from "./routes/pitch";
 import routerInteligenteRoute from "./routes/routerInteligente";
 import googleDocRoute from "./routes/googleDoc";
+import logsVistaRoute from "./routes/logsVista";
+import logsJsonRoute from "./routes/logsJson";
+import estadoRoute from "./routes/estado"; // ✅ NUEVO
 
 // Cargar variables de entorno
 dotenv.config();
@@ -53,7 +56,10 @@ connectToDatabase().catch(err => {
 
 // Autenticación (excluye ping y OpenAPI)
 app.use((req, res, next) => {
-  if (req.path === '/api/ping' || req.path === '/gpt-actions-openapi-bbdd.json') return next();
+  if (
+    req.path === '/api/ping' ||
+    req.path === '/gpt-actions-openapi-bbdd.json'
+  ) return next();
   validateApiToken(req, res, next);
 });
 
@@ -73,6 +79,9 @@ app.use("/api", consistenciaRoute);
 app.use("/api", pitchRoute);
 app.use("/api", routerInteligenteRoute);
 app.use("/api", googleDocRoute);
+app.use("/api", logsVistaRoute);
+app.use("/api", logsJsonRoute);
+app.use("/api", estadoRoute); // ✅ NUEVO
 
 // Manejador de errores global
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
