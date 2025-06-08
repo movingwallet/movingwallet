@@ -1,10 +1,10 @@
-import { Request, Response, NextFunction } from 'express'
-import { LogModel } from '../models/Log'
+import { Request, Response, NextFunction } from 'express';
+import LogModel from '../models/Log';
 
 export async function registrarLogAutomatico(req: Request, res: Response, next: NextFunction) {
   try {
     // Ignoramos ciertos endpoints triviales o de salud
-    if (req.path === '/api/ping') return next()
+    if (req.path === '/api/ping') return next();
 
     await LogModel.create({
       tipo: 'HTTP',
@@ -18,10 +18,10 @@ export async function registrarLogAutomatico(req: Request, res: Response, next: 
           referer: req.headers['referer']
         }
       }
-    })
+    });
   } catch (err) {
-    console.warn('⚠️ Error registrando log automático:', err)
+    console.warn('⚠️ Error registrando log automático:', err);
   }
 
-  next()
+  next();
 }

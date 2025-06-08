@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buscarDocumentos } from "../actions/pinecone/buscarDocumentos";
+import { buscarDocumentos } from "../../actions/pinecone/buscarDocumentos";
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.post("/buscar-pinecone", async (req, res) => {
     console.error("❌ Error en /buscar-pinecone:", error);
     res.status(500).json({
       error: "Error interno en la búsqueda Pinecone",
-      detalles: (error as Error).message
+      detalles: (error as Error).message,
     });
   }
 });
