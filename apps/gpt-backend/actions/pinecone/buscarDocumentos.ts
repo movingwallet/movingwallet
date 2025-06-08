@@ -1,8 +1,9 @@
-import { env } from '../../config/schema.env';
-import { pineconeIndex } from '../../config/pinecone';
 import OpenAI from 'openai';
+import { index } from '../../config/pinecone';
 
-const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
 
 export async function embedQuery(texto: string): Promise<number[]> {
   const response = await openai.embeddings.create({
@@ -16,7 +17,7 @@ export async function embedQuery(texto: string): Promise<number[]> {
 export async function buscarDocumentos(query: string, topK = 5) {
   const vector = await embedQuery(query);
 
-  const resultados = await pineconeIndex.query({
+  const resultados = await index.query({
     vector,
     topK,
     includeMetadata: true,

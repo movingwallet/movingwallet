@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import LogModel from '../models/Log';
+import { Request, Response, NextFunction } from "express";
+import LogModel from "../models/Log";
 
 export async function registrarLogAutomatico(req: Request, res: Response, next: NextFunction) {
   try {
@@ -8,7 +8,7 @@ export async function registrarLogAutomatico(req: Request, res: Response, next: 
 
     await LogModel.create({
       tipo: 'HTTP',
-      origen: req.method + ' ' + req.path,
+      origen: `${req.method} ${req.path}`,
       descripcion: `Acceso a ${req.method} ${req.originalUrl}`,
       payload: {
         body: req.body,

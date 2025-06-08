@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { pineconeIndex } from '../../config/pinecone';
+import { index } from '../../config/pinecone';
 import { embedQuery } from './buscarDocumentos';
 
 export async function indexarMdLocales(dirPath = 'data/actualizados') {
@@ -14,7 +14,7 @@ export async function indexarMdLocales(dirPath = 'data/actualizados') {
 
   for (const doc of documents) {
     const embedding = await embedQuery(doc.values);
-    await pineconeIndex.upsert([
+    await index.upsert([
       {
         id: doc.id,
         values: embedding,

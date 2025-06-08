@@ -1,27 +1,20 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface ILog extends Document {
-  metodo: string;
-  ruta: string;
-  status: number;
-  body?: Record<string, any>;
-  query?: Record<string, any>;
-  headers?: Record<string, any>;
-  userAgent?: string;
-  timestamp: Date;
+interface Log extends Document {
+  tipo: string;
+  origen: string;
+  descripcion: string;
+  payload: Record<string, any>;
+  creadoEn: Date;
 }
 
-const LogSchema = new Schema<ILog>({
-  metodo: { type: String, required: true },
-  ruta: { type: String, required: true },
-  status: { type: Number, required: true },
-  body: { type: Schema.Types.Mixed },
-  query: { type: Schema.Types.Mixed },
-  headers: { type: Schema.Types.Mixed },
-  userAgent: { type: String },
-  timestamp: { type: Date, default: Date.now },
+const logSchema = new Schema<Log>({
+  tipo: { type: String, required: true },
+  origen: { type: String, required: true },
+  descripcion: { type: String, required: true },
+  payload: { type: Schema.Types.Mixed, required: false },
+  creadoEn: { type: Date, default: Date.now },
 });
 
-const Log = mongoose.models.Log || mongoose.model<ILog>("Log", LogSchema);
-
-export default Log;
+const LogModel = mongoose.model<Log>("Log", logSchema);
+export default LogModel;
