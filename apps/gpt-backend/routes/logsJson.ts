@@ -1,16 +1,16 @@
-import express from "express"
-import { LogModel } from "../models/Log"
+import express, { Request, Response } from "express";
+import LogModel from "../models/Log";
 
-const router = express.Router()
+const router = express.Router();
 
-router.get("/logs/json", async (req, res) => {
+router.get("/logs.json", async (_req: Request, res: Response) => {
   try {
-    const logs = await LogModel.find().sort({ fecha: -1 }).limit(100)
-    res.json({ success: true, logs })
-  } catch (error) {
-    console.error("❌ Error en /logs/json:", error)
-    res.status(500).json({ success: false, error: "Error al obtener logs", detalle: error })
+    const logs = await LogModel.find().sort({ creadoEn: -1 }).limit(100);
+    res.json(logs);
+  } catch (err) {
+    console.error("❌ Error al obtener logs:", err);
+    res.status(500).json({ error: "Error al obtener logs" });
   }
-})
+});
 
-export default router
+export default router;

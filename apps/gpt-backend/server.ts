@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
@@ -11,14 +11,14 @@ import { registrarLogAutomatico } from "./middleware/logger";
 import pingRoute from "./routes/ping";
 import githubRoute from "./routes/github";
 import googleDocRoute from "./routes/googleDoc";
-import { routerInteligenteRoute } from "./routes/gpt/routerInteligente"; // ✅ CORREGIDO
+import { routerInteligenteRoute } from "./routes/gpt/routerInteligente";
 
 // Rutas organizadas por carpetas
 import crearEntradaDocRoute from "./routes/documentacion/crearEntrada";
 import githubCommitsRoute from "./routes/github/commits";
 import pineconeBuscarRoute from "./routes/pinecone/buscar";
 import gptPromptRoute from "./routes/gpt/prompt";
-import gptGithubResumenRoute from "./routes/gpt/githubResumen"; // ✅ NUEVO
+import gptGithubResumenRoute from "./routes/gpt/githubResumen";
 import estadoSistemaRoute from "./routes/resumen/estadoSistema";
 
 // Logs y estado
@@ -51,8 +51,8 @@ connectToDatabase().catch(err => {
   process.exit(1);
 });
 
-// Autenticación (excluye ping y OpenAPI)
-app.use((req, res, next) => {
+// Autenticación (excepto rutas públicas)
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (
     req.path === '/api/ping' ||
     req.path === '/gpt-actions-openapi-bbdd.json'
@@ -70,7 +70,7 @@ app.use("/api", crearEntradaDocRoute);
 app.use("/api", githubCommitsRoute);
 app.use("/api", pineconeBuscarRoute);
 app.use("/api", gptPromptRoute);
-app.use("/api", gptGithubResumenRoute); // ✅ NUEVO
+app.use("/api", gptGithubResumenRoute);
 app.use("/api", estadoSistemaRoute);
 
 app.use("/api", logsVistaRoute);
@@ -78,7 +78,7 @@ app.use("/api", logsJsonRoute);
 app.use("/api", estadoRoute);
 
 // Manejador de errores
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error("❌ Error:", err.stack);
   res.status(500).json({
     error: "Internal Server Error",

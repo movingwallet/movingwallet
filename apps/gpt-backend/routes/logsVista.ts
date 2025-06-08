@@ -1,59 +1,46 @@
-import express from "express"
-import { LogModel } from "../models/Log"
+import express, { Request, Response } from "express";
+import LogModel from "../models/Log";
 
-const router = express.Router()
+const router = express.Router();
 
-router.get("/logs/vista", async (req, res) => {
+router.get("/logs", async (_req: Request, res: Response) => {
   try {
-    const logs = await LogModel.find().sort({ fecha: -1 }).limit(100)
+    const logs = await LogModel.find().sort({ creadoEn: -1 }).limit(50);
 
     const html = `
       <html>
         <head>
-          <title>Logs GPT Backend</title>
+          <title>Logs</title>
           <style>
-            body { font-family: sans-serif; margin: 2rem; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-            th { background: #f0f0f0; }
-            tr:nth-child(even) { background: #fafafa; }
-            code { background: #eee; padding: 2px 4px; border-radius: 4px; }
+            body { font-family: sans-serif; background: #f7f7f7; padding: 2rem; }
+            .log { background: white; padding: 1rem; margin-bottom: 1rem; border-left: 5px solid #0070f3; }
+            .tipo { font-weight: bold; color: #0070f3; }
+            .origen { font-size: 0.9rem; color: gray; }
+            pre { background: #eee; padding: 0.5rem; overflow-x: auto; }
           </style>
         </head>
         <body>
-          <h1>🧠 Logs GPT Backend (últimos 100)</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Origen</th>
-                <th>Descripción</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${logs
-                .map(
-                  (log) => `
-                <tr>
-                  <td>${new Date(log.fecha).toLocaleString()}</td>
-                  <td><code>${log.tipo}</code></td>
-                  <td>${log.origen || "-"}</td>
-                  <td>${log.descripcion || "-"}</td>
-                </tr>`
-                )
-                .join("")}
-            </tbody>
-          </table>
+          <h1>Últimos Logs</h1>
+          ${logs
+            .map(
+              (log) => `
+              <div class="log">
+                <div class="tipo">${log.tipo}</div>
+                <div class="origen">${log.origen}</div>
+                <div class="descripcion">${log.descripcion}</div>
+                <pre>${JSON.stringify(log.payload, null, 2)}</pre>
+              </div>`
+            )
+            .join("")}
         </body>
       </html>
-    `
+    `;
 
-    res.send(html)
-  } catch (error) {
-    console.error("Error en /logs/vista:", error)
-    res.status(500).send("Error al cargar logs")
+    res.send(html);
+  } catch (err) {
+    console.error("❌ Error al renderizar logs:", err);
+    res.status(500).send("Error al renderizar logs");
   }
-})
+});
 
-export default router
+export default router;

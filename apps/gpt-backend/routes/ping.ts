@@ -1,8 +1,9 @@
-import { Router, Request, Response } from "express";
-const router = Router();
+import express, { Request, Response } from "express";
 
-router.post("/ping", (_req: Request, res: Response) => {
-  res.json({ respuesta: "pong" });
+const router = express.Router();
+
+router.get("/ping", (_req: Request, res: Response) => {
+  res.json({ status: "pong", timestamp: new Date().toISOString() });
 });
 
 export default router;
