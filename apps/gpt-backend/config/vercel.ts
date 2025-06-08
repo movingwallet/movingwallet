@@ -1,17 +1,20 @@
-import mongoose from "mongoose";
+import { config } from '@/config';
+import axios from 'axios';
 
-export const connectToDatabase = async () => {
-  const dbUri = process.env.MONGODB_URI;
-  
-  if (!dbUri) {
-    throw new Error("MONGODB_URI no está definido en las variables de entorno");
-  }
+const vercelClient = axios.create({
+  baseURL: 'https://api.vercel.com',
+  headers: {
+    Authorization: `Bearer ${config.vercel.apiKey}`,
+  },
+});
 
-  try {
-    await mongoose.connect(dbUri);
-    console.log("✅ Conectado a MongoDB");
-  } catch (error) {
-    console.error("❌ Error de conexión a MongoDB:", error);
-    throw error;
-  }
-};
+export async function getDeployStatus() {
+  const project = config.vercel.projectId;
+  const team = config.vercel.teamId;
+
+  const response = await vercelClient.get(`/v6/deployments`, {
+    params: { projectId: project, teamId: team, limit: 5 },
+  });
+
+  return response.data;
+}

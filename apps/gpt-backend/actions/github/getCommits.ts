@@ -1,20 +1,21 @@
-import { Octokit } from 'octokit'
-import { env } from '../../config/schema.env'
+import { Octokit } from 'octokit';
+import { config } from '@/config';
 
-const octokit = new Octokit({ auth: env.GITHUB_TOKEN })
+const octokit = new Octokit({ auth: config.github.token });
 
-export async function getUltimoCommit(repo: string) {
-  const [owner, name] = repo.split('/')
+export async function getUltimoCommit() {
+  const { owner, repo } = config.github;
+
   const commits = await octokit.rest.repos.listCommits({
     owner,
-    repo: name,
+    repo,
     per_page: 1,
-  })
+  });
 
-  const commit = commits.data[0]
+  const commit = commits.data[0];
   return {
     sha: commit.sha,
     mensaje: commit.commit.message,
     fecha: commit.commit.author?.date,
-  }
+  };
 }
