@@ -1,17 +1,8 @@
-import mongoose from "mongoose";
+import { Pinecone } from '@pinecone-database/pinecone';
+import { env } from './schema.env';
 
-export const connectToDatabase = async () => {
-  const dbUri = process.env.MONGODB_URI;
-  
-  if (!dbUri) {
-    throw new Error("MONGODB_URI no está definido en las variables de entorno");
-  }
+const pinecone = new Pinecone({
+  apiKey: env.PINECONE_API_KEY,
+});
 
-  try {
-    await mongoose.connect(dbUri);
-    console.log("✅ Conectado a MongoDB");
-  } catch (error) {
-    console.error("❌ Error de conexión a MongoDB:", error);
-    throw error;
-  }
-};
+export const pineconeIndex = pinecone.Index(env.PINECONE_INDEX_NAME);

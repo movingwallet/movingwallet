@@ -1,23 +1,24 @@
-import express from 'express'
-import { buscarEnPinecone } from '../../actions/pinecone/buscar'
-import { generarEstadoActual } from '../../actions/resumen/generarEstadoActual'
+import express from 'express';
+import { buscarDocumentos } from '../../actions/pinecone/buscarDocumentos';
+import { generarEstadoActual } from '../../actions/resumen/generarEstadoActual';
 
-const router = express.Router()
+const router = express.Router();
 
 router.post('/', async (req, res) => {
-  const pregunta = req.body?.pregunta || ''
+  const pregunta = req.body?.pregunta || '';
 
   try {
     if (pregunta.toLowerCase().includes('último commit')) {
-      const estado = await generarEstadoActual()
-      return res.json({ tipo: 'estado', respuesta: estado })
+      const estado = await generarEstadoActual();
+      return res.json({ tipo: 'estado', respuesta: estado });
     }
 
-    const resultado = await buscarEnPinecone(pregunta)
-    res.json({ tipo: 'pinecone', resultado })
+    const resultado = await buscarDocumentos(pregunta);
+    res.json({ tipo: 'pinecone', resultado });
   } catch (err) {
-    res.status(500).json({ error: 'GPT router error', detalle: err })
+    console.error('❌ GPT router error:', err);
+    res.status(500).json({ error: 'GPT router error', detalle: err });
   }
-})
+});
 
-export default router
+export const routerInteligenteRoute = router;

@@ -1,14 +1,7 @@
-import { config } from '@/config';
-import { Pinecone } from '@pinecone-database/pinecone';
 import fs from 'fs/promises';
 import path from 'path';
-
-const pinecone = new Pinecone({
-  apiKey: config.pinecone.apiKey,
-  environment: config.pinecone.environment,
-});
-
-const index = pinecone.Index(config.pinecone.indexName);
+import { pineconeIndex } from '../../config/pinecone';
+import { embedQuery } from './buscarDocumentos';
 
 export async function indexarMdLocales(dirPath = 'data/actualizados') {
   const files = await fs.readdir(dirPath);
@@ -20,12 +13,11 @@ export async function indexarMdLocales(dirPath = 'data/actualizados') {
   );
 
   for (const doc of documents) {
-    await index.upsert([
+    const embedding = await embedQuery(doc.values);
+    await pineconeIndex.upsert([
       {
         id: doc.id,
-        values: {
-          content: doc.values,
-        },
+        values: embedding,
       },
     ]);
   }

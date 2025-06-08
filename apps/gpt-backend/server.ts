@@ -10,24 +10,21 @@ import { registrarLogAutomatico } from "./middleware/logger";
 // Rutas básicas
 import pingRoute from "./routes/ping";
 import githubRoute from "./routes/github";
-import markdownRoute from "./routes/markdown";
-
-// Acciones confirmadas
-import crearEntradaRoute from "./routes/crearEntrada";
-import pineconeRoute from "./routes/buscarPinecone";
-import commitRoute from "./routes/commit";
-import excelRoute from "./routes/googleExcel";
-import sheetRoute from "./routes/googleSheet";
-import verificarRoute from "./routes/verificar";
-import reintentarRoute from "./routes/reintentar";
-import resumenRoute from "./routes/resumen";
-import consistenciaRoute from "./routes/consistencia";
-import pitchRoute from "./routes/pitch";
-import routerInteligenteRoute from "./routes/routerInteligente";
 import googleDocRoute from "./routes/googleDoc";
+import { routerInteligenteRoute } from "./routes/gpt/routerInteligente"; // ✅ CORREGIDO
+
+// Rutas organizadas por carpetas
+import crearEntradaDocRoute from "./routes/documentacion/crearEntrada";
+import githubCommitsRoute from "./routes/github/commits";
+import pineconeBuscarRoute from "./routes/pinecone/buscar";
+import gptPromptRoute from "./routes/gpt/prompt";
+import gptGithubResumenRoute from "./routes/gpt/githubResumen"; // ✅ NUEVO
+import estadoSistemaRoute from "./routes/resumen/estadoSistema";
+
+// Logs y estado
 import logsVistaRoute from "./routes/logsVista";
 import logsJsonRoute from "./routes/logsJson";
-import estadoRoute from "./routes/estado"; // ✅ NUEVO
+import estadoRoute from "./routes/estado";
 
 // Cargar variables de entorno
 dotenv.config();
@@ -42,13 +39,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Registrar logs automáticamente (antes de la auth si se desea capturar todo)
+// Registrar logs automáticamente
 app.use(registrarLogAutomatico);
 
-// Servir archivos estáticos como el OpenAPI JSON
+// Servir archivos estáticos como OpenAPI
 app.use(express.static(path.join(__dirname, "public")));
 
-// Conexión a base de datos (si aplica)
+// Conexión a base de datos
 connectToDatabase().catch(err => {
   console.error("❌ Error en la conexión a la base de datos:", err);
   process.exit(1);
@@ -63,27 +60,24 @@ app.use((req, res, next) => {
   validateApiToken(req, res, next);
 });
 
-// Registrar rutas de API
+// Registrar rutas
 app.use("/api", pingRoute);
 app.use("/api", githubRoute);
-app.use("/api", markdownRoute);
-app.use("/api", crearEntradaRoute);
-app.use("/api", pineconeRoute);
-app.use("/api", commitRoute);
-app.use("/api", excelRoute);
-app.use("/api", sheetRoute);
-app.use("/api", verificarRoute);
-app.use("/api", reintentarRoute);
-app.use("/api", resumenRoute);
-app.use("/api", consistenciaRoute);
-app.use("/api", pitchRoute);
-app.use("/api", routerInteligenteRoute);
 app.use("/api", googleDocRoute);
+app.use("/api", routerInteligenteRoute);
+
+app.use("/api", crearEntradaDocRoute);
+app.use("/api", githubCommitsRoute);
+app.use("/api", pineconeBuscarRoute);
+app.use("/api", gptPromptRoute);
+app.use("/api", gptGithubResumenRoute); // ✅ NUEVO
+app.use("/api", estadoSistemaRoute);
+
 app.use("/api", logsVistaRoute);
 app.use("/api", logsJsonRoute);
-app.use("/api", estadoRoute); // ✅ NUEVO
+app.use("/api", estadoRoute);
 
-// Manejador de errores global
+// Manejador de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("❌ Error:", err.stack);
   res.status(500).json({
@@ -97,6 +91,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 app.listen(PORT, () => {
   console.log(`✅ GPT-backend corriendo en http://localhost:${PORT}`);
   console.log(`🔗 OpenAPI disponible en /gpt-actions-openapi-bbdd.json`);
+  console.log(`🧠 GPT disponible en /api/gpt/prompt`);
+  console.log(`🧠 GitHub resumen en /api/gpt/github-resumen`);
   console.log(`🔑 Tokens API permitidos: ${API_TOKENS.length}`);
 });
 
