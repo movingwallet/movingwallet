@@ -1,20 +1,15 @@
-import { Octokit } from '@octokit/rest';
-import { env } from '../../config/schema.env';
+import simpleGit from "simple-git";
 
-const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
+export async function getUltimoCommit(branch: string) {
+  const git = simpleGit({ baseDir: process.cwd() });
 
-export async function getUltimoCommit(repo: string) {
-  const [owner, name] = repo.split('/');
-  const commits = await octokit.rest.repos.listCommits({
-    owner,
-    repo: name,
-    per_page: 1,
-  });
+  const log = await git.log({ n: 1, from: branch });
+  const commit = log.latest;
 
-  const commit = commits.data[0];
   return {
-    sha: commit.sha,
-    mensaje: commit.commit.message,
-    fecha: commit.commit.author?.date,
+    hash: commit?.hash,
+    message: commit?.message,
+    date: commit?.date,
+    author: commit?.author_name,
   };
 }

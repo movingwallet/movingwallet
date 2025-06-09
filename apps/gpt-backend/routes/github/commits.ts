@@ -1,16 +1,20 @@
-import express from 'express'
-import { getUltimoCommit } from '../../actions/github/getCommits'
+import { Router, Request, Response } from "express";
+import simpleGit from "simple-git";
 
-const router = express.Router()
+const router = Router();
 
-router.get('/:repo', async (req, res) => {
+router.get("/github/commits", async (req: Request, res: Response) => {
   try {
-    const repo = req.params.repo
-    const data = await getUltimoCommit(repo)
-    res.json(data)
-  } catch (err) {
-    res.status(500).json({ error: 'Error al obtener commit', detalle: err })
+    const git = simpleGit();
+    const log = await git.log({ maxCount: 10 });
+    res.json({ commits: log.all });
+  } catch (error) {
+    console.error("❌ Error al obtener commits:", error);
+    res.status(500).json({
+      error: "Error al obtener commits del repositorio",
+      detalles: (error as Error).message
+    });
   }
-})
+});
 
-export default router
+export default router;

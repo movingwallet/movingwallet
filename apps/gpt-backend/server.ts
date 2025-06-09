@@ -52,7 +52,7 @@ connectToDatabase().catch(err => {
 });
 
 // Autenticación (excepto rutas públicas)
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (
     req.path === '/api/ping' ||
     req.path === '/gpt-actions-openapi-bbdd.json'
