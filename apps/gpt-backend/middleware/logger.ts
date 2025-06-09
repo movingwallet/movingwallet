@@ -1,19 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 
-export function registrarLogAutomatico(req: Request, res: Response, next: NextFunction) {
-  const timestamp = new Date().toISOString();
-  const log = {
-    timestamp,
-    method: req.method,
-    path: req.originalUrl,
-    body: req.body,
-    query: req.query,
-    headers: {
-      origin: req.headers.origin,
-      referer: req.headers.referer,
-    },
-  };
+const loggerMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  console.log("📥 METHOD:", req.method);
+  console.log("📡 URL:", req.originalUrl);
+  console.log("🧾 BODY:", req.body);
+  console.log("🔍 QUERY:", req.query);
+  console.log("🧠 HEADERS:", req.headers);
 
-  console.log("📘 Log automático:", JSON.stringify(log, null, 2));
   next();
-}
+};
+
+export default loggerMiddleware;
