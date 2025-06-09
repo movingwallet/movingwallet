@@ -1,26 +1,24 @@
-import express from "express";
+import { Router, Request, Response } from "express";
+import { generarResumenRepositorio } from "@/actions/github/generarResumenRepositorio";
 
-const router = express.Router();
+const router = Router();
 
-/**
- * Endpoint POST /api/gpt/github-resumen
- * Requiere body: { repo: string, branch: string }
- */
-router.post("/gpt/github-resumen", async (req, res) => {
+router.post("/gpt/github-resumen", async (req: Request, res: Response) => {
+  const { repoFullName } = req.body;
+
+  if (!repoFullName) {
+    return res.status(400).json({ error: "Falta el nombre del repositorio" });
+  }
+
   try {
-    const { repo, branch } = req.body;
-
-    if (!repo || !branch) {
-      return res.status(400).json({ error: "Faltan parámetros: repo o branch" });
-    }
-
-    // Aquí se haría una petición real a GitHub y luego resumen GPT
-    const resumen = `🔍 Resumen simulado de la rama '${branch}' en el repositorio '${repo}'`;
-
-    return res.json({ resumen });
+    const resumen = await generarResumenRepositorio(repoFullName);
+    res.json({ resumen });
   } catch (error) {
-    console.error("❌ Error en /gpt/github-resumen:", error);
-    return res.status(500).json({ error: "Error al generar resumen de GitHub" });
+    console.error("❌ Error al generar resumen:", error);
+    res.status(500).json({
+      error: "Error interno al generar resumen",
+      detalles: (error as Error).message,
+    });
   }
 });
 

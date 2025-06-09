@@ -1,27 +1,24 @@
-import express from "express";
-import { openai } from "../../config/openai";
+import { Router, Request, Response } from "express";
+import { ejecutarPromptGPT } from "@/actions/gpt/ejecutarPromptGPT";
 
-const router = express.Router();
+const router = Router();
 
-router.post("/gpt/prompt", async (req, res) => {
+router.post("/gpt/prompt", async (req: Request, res: Response) => {
+  const { prompt } = req.body;
+
+  if (!prompt) {
+    return res.status(400).json({ error: "Falta el prompt" });
+  }
+
   try {
-    const { prompt, model = "gpt-4", temperature = 0.7 } = req.body;
-
-    if (!prompt) {
-      return res.status(400).json({ error: "Falta el campo 'prompt'" });
-    }
-
-    const completion = await openai.chat.completions.create({
-      model,
-      temperature,
-      messages: [{ role: "user", content: prompt }]
+    const respuesta = await ejecutarPromptGPT(prompt);
+    res.json({ respuesta });
+  } catch (error) {
+    console.error("❌ Error al ejecutar prompt:", error);
+    res.status(500).json({
+      error: "Error interno al ejecutar el prompt",
+      detalles: (error as Error).message,
     });
-
-    const reply = completion.choices[0]?.message?.content || "";
-    res.json({ reply, usage: completion.usage });
-  } catch (error: any) {
-    console.error("❌ Error en /gpt/prompt:", error);
-    res.status(500).json({ error: error.message || "Fallo interno" });
   }
 });
 

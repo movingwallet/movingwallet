@@ -1,12 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 
-export function validateApiToken(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers["x-api-key"];
-  const validTokens = process.env.API_TOKENS?.split(",").map((t) => t.trim()) || [];
+const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization;
 
-  if (!token || !validTokens.includes(token.toString())) {
-    return res.status(401).json({ error: "Token inválido o faltante" });
+  if (!token) {
+    return res.status(401).json({ error: "Token faltante o inválido" });
   }
 
+  // Aquí podrías validar el token en el futuro
   next();
-}
+};
+
+export default authMiddleware;
