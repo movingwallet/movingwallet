@@ -1,16 +1,24 @@
-import express, { Request, Response } from "express";
-import { getUltimoCommit } from "../../../apps/gpt-backend/actions/github/getCommits";
+import { Router, Request, Response } from "express";
+import { obtenerDatosRepositorio } from "../actions/github/obtenerDatosRepositorio";
 
-const router = express.Router();
+const router = Router();
 
-router.get("/github/ultimo-commit", async (_req: Request, res: Response) => {
+router.post("/github/repositorio", async (req: Request, res: Response) => {
+  const { repoFullName } = req.body;
+
+  if (!repoFullName) {
+    return res.status(400).json({ error: "Falta el campo 'repoFullName'" });
+  }
+
   try {
-    // Ajustamos con un argumento por defecto (ej. rama "main")
-    const resultado = await getUltimoCommit("main");
-    res.json(resultado);
-  } catch (err) {
-    console.error("❌ Error al obtener el último commit:", err);
-    res.status(500).json({ error: "Error al obtener último commit" });
+    const datos = await obtenerDatosRepositorio(repoFullName);
+    res.json({ datos });
+  } catch (error) {
+    console.error("❌ Error al obtener datos del repositorio:", error);
+    res.status(500).json({
+      error: "Error interno al obtener datos de GitHub",
+      detalles: (error as Error).message,
+    });
   }
 });
 
