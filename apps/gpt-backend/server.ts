@@ -6,38 +6,36 @@ import path from "path";
 import { connectToDatabase } from "./config/database";
 import { loadEnv } from "./config/schema.env";
 
-// Middlewares reales del repo
+// Middlewares
 import authMiddleware from "./middleware/auth";
 import loggerMiddleware from "./middleware/logger";
 
-// Rutas básicas
+// Rutas
 import pingRoute from "./routes/ping";
 import githubRoute from "./routes/github";
 import googleDocRoute from "./routes/googleDoc";
 import { routerInteligenteRoute } from "./routes/gpt/routerInteligente";
 
-// Rutas organizadas por carpetas
 import crearEntradaDocRoute from "./routes/documentacion/crearEntrada";
 import githubCommitsRoute from "./routes/github/commits";
 import gptPromptRoute from "./routes/gpt/prompt";
 import gptGithubResumenRoute from "./routes/gpt/githubResumen";
 import estadoSistemaRoute from "./routes/resumen/estadoSistema";
 
-// Logs y estado
 import logsVistaRoute from "./routes/logsVista";
 import logsJsonRoute from "./routes/logsJson";
 import estadoRoute from "./routes/estado";
 
 /**
  * 2026-01:
- * En monorepo con pnpm + tsx, el CWD es apps/gpt-backend.
+ * Monorepo: al arrancar con pnpm --filter, el CWD es apps/gpt-backend.
  * Forzamos cargar el .env desde la raíz del repo.
  */
 dotenv.config({
   path: path.resolve(process.cwd(), "../../.env"),
 });
 
-// ✅ Validar env DESPUÉS de dotenv
+// Validar env DESPUÉS de dotenv
 const env = loadEnv();
 
 const API_TOKENS = (env.API_TOKENS || "")
@@ -47,25 +45,20 @@ const API_TOKENS = (env.API_TOKENS || "")
 
 const PORT = env.PORT || 3000;
 
-// Inicializar Express
 const app = express();
 
-// Middlewares base
+// Base middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logger
+// Logger (reactivado)
 app.use(loggerMiddleware);
 
-// Servir estáticos (si aplica)
+// Static
 app.use(express.static(path.join(process.cwd(), "public")));
 
-/**
- * MongoDB:
- * - Si existe MONGO_URI → conectamos
- * - Si no → no bloqueamos arranque (fase previa)
- */
+// Mongo (opcional en esta fase)
 if (env.MONGO_URI) {
   connectToDatabase().catch((err) => {
     console.error("❌ Error en la conexión a MongoDB:", err);
@@ -80,13 +73,19 @@ if (env.MONGO_URI) {
  * Permitimos /api/ping y OpenAPI sin auth
  */
 app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (req.path === "/api/ping" || req.path === "/gpt-actions-openapi-bbdd.json") {
+  // Bypass robusto para healthchecks y openapi
+  if (
+    req.originalUrl === "/api/ping" ||
+    req.path === "/ping" ||
+    req.originalUrl === "/gpt-actions-openapi-bbdd.json"
+  ) {
     return next();
   }
+
   return authMiddleware(req, res, next);
 });
 
-// ---------- RUTAS ----------
+// Routes
 app.use("/api", pingRoute);
 app.use("/api", githubRoute);
 app.use("/api", googleDocRoute);
@@ -97,6 +96,7 @@ app.use("/api", githubCommitsRoute);
 
 /**
  * Pinecone DESACTIVADO (Qdrant day 1)
+ * routes/pinecone/buscar.ts devuelve 410 como stub.
  */
 
 app.use("/api", gptPromptRoute);
@@ -116,7 +116,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-// Arranque
+// Listen
 app.listen(PORT, () => {
   console.log(`✅ gpt-backend corriendo en http://localhost:${PORT}`);
   console.log(`🧠 GPT prompt en /api/gpt/prompt`);
