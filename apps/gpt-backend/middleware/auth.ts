@@ -1,14 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 
-const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization;
+// Middleware de autenticación básica por token de API.
+// Este token se debe definir en el archivo `.env` como API_TOKEN.
+// Se usa para proteger rutas que no deben ser públicas.
 
-  if (!token) {
-    return res.status(401).json({ error: "Token faltante o inválido" });
+const validateApiToken = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers["x-api-token"];
+
+  if (!token || token !== process.env.API_TOKEN) {
+    return res.status(401).json({ error: "Token de autenticación inválido o faltante" });
   }
 
-  // Aquí podrías validar el token en el futuro
   next();
 };
 
-export default authMiddleware;
+export default validateApiToken;

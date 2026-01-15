@@ -10,25 +10,31 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # 2026-01: usamos versiones actuales de acciones (v4) por seguridad/compat.
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      # 2026-01: instalamos pnpm explícitamente (evita fallos en runners limpios).
+      - name: 🧩 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: 📦 Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: 🧪 Run tests
         run: pnpm test
 
-    # Si falla, se lanza este paso
-    if: failure()
-    steps:
+      # 2026-01: el “if: failure()” debe ir en un STEP (no a nivel job con otro steps).
       - name: 🚨 Send Pushover notification on failure
+        if: failure()
         run: |
           curl -s \
             --form-string "token=${{ secrets.PUSHOVER_API_TOKEN }}" \
