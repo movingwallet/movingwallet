@@ -2,6 +2,8 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
+import crypto from "crypto";
 
 import { connectToDatabase } from "./config/database";
 import { loadEnv } from "./config/schema.env";
@@ -26,14 +28,37 @@ import logsVistaRoute from "./routes/logsVista";
 import logsJsonRoute from "./routes/logsJson";
 import estadoRoute from "./routes/estado";
 
+import openaiDebugRoute from "./routes/debug/openai";
+
 /**
- * 2026-01:
- * Monorepo: al arrancar con pnpm --filter, el CWD es apps/gpt-backend.
- * Forzamos cargar el .env desde la raíz del repo.
+ * ✅ ENV LOADING (robusto y sin import.meta / __dirname)
+ * - Carga .env normal
+ * - Luego intenta varios paths típicos de monorepo
+ * - El primero que exista gana
  */
-dotenv.config({
-  path: path.resolve(process.cwd(), "../../.env"),
-});
+dotenv.config();
+
+const candidateEnvPaths = [
+  // 1) si alguien quiere forzarlo por variable
+  process.env.ENV_PATH ? path.resolve(process.cwd(), process.env.ENV_PATH) : null,
+
+  // 2) .env en el cwd actual
+  path.resolve(process.cwd(), ".env"),
+
+  // 3) monorepo: si arrancas desde apps/gpt-backend
+  path.resolve(process.cwd(), "../../.env"),
+  path.resolve(process.cwd(), "../../../.env"),
+
+  // 4) monorepo: si arrancas desde raíz
+  path.resolve(process.cwd(), "apps/gpt-backend/.env"),
+].filter(Boolean) as string[];
+
+for (const p of candidateEnvPaths) {
+  if (fs.existsSync(p)) {
+    dotenv.config({ path: p });
+    break;
+  }
+}
 
 // Validar env DESPUÉS de dotenv
 const env = loadEnv();
@@ -47,37 +72,64 @@ const PORT = env.PORT || 3000;
 
 const app = express();
 
+// Proxy (Vercel)
+app.set("trust proxy", 1);
+
 // Base middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Logger (reactivado)
+/**
+ * TraceId global
+ */
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const traceId = crypto.randomUUID();
+  (req as any).traceId = traceId;
+  res.setHeader("x-trace-id", traceId);
+  next();
+});
+
+// Logger
 app.use(loggerMiddleware);
 
 // Static
 app.use(express.static(path.join(process.cwd(), "public")));
 
-// Mongo (opcional en esta fase)
+/**
+ * Health (sin auth)
+ */
+app.get("/health", (req: Request, res: Response) => {
+  res.json({
+    status: "ok",
+    traceId: (req as any).traceId,
+  });
+});
+
+// Mongo (opcional)
 if (env.MONGO_URI) {
   connectToDatabase().catch((err) => {
-    console.error("❌ Error en la conexión a MongoDB:", err);
+    console.error("❌ Error MongoDB:", err);
     process.exit(1);
   });
 } else {
-  console.warn("⚠️ MONGO_URI no definido. Se omite conexión a MongoDB (fase previa).");
+  console.warn("⚠️ MONGO_URI no definido. Mongo desactivado.");
 }
 
 /**
- * Auth:
- * Permitimos /api/ping y OpenAPI sin auth
+ * Auth bypass
  */
-app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // Bypass robusto para healthchecks y openapi
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const p = req.path; // ej: "/api/debug/openai"
+  const ou = req.originalUrl; // por si viene con query
+
   if (
-    req.originalUrl === "/api/ping" ||
-    req.path === "/ping" ||
-    req.originalUrl === "/gpt-actions-openapi-bbdd.json"
+    p === "/api/ping" ||
+    p === "/ping" ||
+    p === "/health" ||
+    p === "/gpt-actions-openapi-bbdd.json" ||
+    p === "/api/debug/openai" ||
+    ou.startsWith("/api/debug/openai")
   ) {
     return next();
   }
@@ -94,11 +146,6 @@ app.use("/api", routerInteligenteRoute);
 app.use("/api", crearEntradaDocRoute);
 app.use("/api", githubCommitsRoute);
 
-/**
- * Pinecone DESACTIVADO (Qdrant day 1)
- * routes/pinecone/buscar.ts devuelve 410 como stub.
- */
-
 app.use("/api", gptPromptRoute);
 app.use("/api", gptGithubResumenRoute);
 app.use("/api", estadoSistemaRoute);
@@ -107,12 +154,25 @@ app.use("/api", logsVistaRoute);
 app.use("/api", logsJsonRoute);
 app.use("/api", estadoRoute);
 
-// Error handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("❌ Error:", err.stack);
+// Debug
+app.use("/api", openaiDebugRoute);
+
+/**
+ * Error handler global
+ */
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  const traceId = (req as any).traceId;
+
+  console.error("❌ Error global:", {
+    traceId,
+    message: err?.message,
+    stack: err?.stack,
+  });
+
   res.status(500).json({
     error: "Internal Server Error",
-    details: env.NODE_ENV === "development" ? err.message : undefined,
+    traceId,
+    details: env.NODE_ENV === "development" ? err?.message : undefined,
   });
 });
 
@@ -121,6 +181,7 @@ app.listen(PORT, () => {
   console.log(`✅ gpt-backend corriendo en http://localhost:${PORT}`);
   console.log(`🧠 GPT prompt en /api/gpt/prompt`);
   console.log(`🔑 API_TOKENS configurados: ${API_TOKENS.length}`);
+  console.log(`🔧 NODE_ENV: ${env.NODE_ENV}`);
 });
 
 export default app;
