@@ -31,6 +31,7 @@ import estadoRoute from "./routes/estado";
 // Debug
 import openaiDebugRoute from "./routes/debug/openai";
 import diagnosticsRoute from "./routes/debug/diagnostics";
+import aiDebugRoute from "./routes/debug/ai";
 
 /**
  * ✅ ENV LOADING (monorepo-safe)
@@ -163,8 +164,10 @@ export function createApp() {
       p === "/gpt-actions-openapi-bbdd.json" ||
       p === "/api/debug/openai" ||
       p === "/api/debug/diagnostics" ||
+      p === "/api/debug/ai" ||
       ou.startsWith("/api/debug/openai") ||
-      ou.startsWith("/api/debug/diagnostics")
+      ou.startsWith("/api/debug/diagnostics") ||
+      ou.startsWith("/api/debug/ai")
     ) {
       return next();
     }
@@ -192,6 +195,7 @@ export function createApp() {
   // Debug
   app.use("/api", openaiDebugRoute);
   app.use("/api", diagnosticsRoute);
+  app.use("/api", aiDebugRoute);
 
   /**
    * ✅ Error handler global (con traceId)
