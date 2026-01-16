@@ -17,7 +17,7 @@ jobs:
       LOG_LEVEL: silent
       VITEST: "1"
       # Evita que en CI se rompa el schema/env si no hay secret real:
-      OPENAI_API_KEY: "sk-test"
+      OPENAI_API_KEY: "test_key"
       API_TOKENS: "token2dev"
 
     steps:
