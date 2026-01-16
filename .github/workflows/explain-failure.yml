@@ -4,15 +4,13 @@ on:
   workflow_call:
     inputs:
       reason:
-        description: "Failure reason hint"
         required: false
         type: string
         default: "smoke-backend failed"
-      ai_provider:
-        description: "AI provider used in smoke run"
+      base_url:
         required: false
         type: string
-        default: "openai"
+        default: "http://127.0.0.1:3000"
 
 jobs:
   explain:
@@ -25,73 +23,58 @@ jobs:
           name: backend-smoke-logs
           path: logs
 
-      - name: "Explain failure (human summary + auto-classify)"
+      - name: "Explain failure (deterministic first, logs fallback)"
         run: |
           set -e
 
+          BASE_URL="${{ inputs.base_url }}"
           LOG="logs/backend-smoke.log"
+          DEBUG_JSON="debug-ai.json"
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "❌ CI FAILURE — HUMAN SUMMARY"
+          echo "❌ CI FAILURE — DIAGNOSTIC"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
-          echo "Context:"
-          echo "- Job: smoke-backend"
-          echo "- Reason: ${{ inputs.reason }}"
-          echo "- AI provider: ${{ inputs.ai_provider }}"
+
+          # 1) Try deterministic diagnostic
+          if curl -sSf "$BASE_URL/api/debug/ai" > "$DEBUG_JSON"; then
+            echo "🧠 Deterministic diagnostic from /api/debug/ai"
+            echo ""
+
+            node - <<'NODE'
+            const fs = require("fs");
+            const d = JSON.parse(fs.readFileSync("debug-ai.json","utf8"));
+
+            const event = {
+              source: "ci",
+              kind: "ai_diagnostic",
+              provider: d.provider,
+              hasKey: d.hasKey,
+              keyCheck: d.keyCheck,
+              circuit: d?.openai?.circuitBreaker?.state || null,
+              model: d?.openai?.model || null,
+              baseURL: d?.openai?.baseURL || null,
+              timestamp: new Date().toISOString(),
+              env: "ci"
+            };
+
+            console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            console.log("📦 Structured diagnostic event");
+            console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            console.log(JSON.stringify(event, null, 2));
+            NODE
+
+            exit 0
+          fi
+
+          # 2) Fallback to logs
+          echo "⚠️ /api/debug/ai not reachable. Falling back to logs."
           echo ""
 
           if [ ! -f "$LOG" ]; then
             echo "No backend-smoke.log artifact found."
-            echo "Likely causes:"
-            echo "* backend never started"
-            echo "* artifact upload failed"
             exit 0
           fi
-
-          DIAG_TITLE="Unknown failure"
-          DIAG_HINTS=$'Check backend-smoke.log tail and GitHub job logs.'
-
-          if grep -qiE "EADDRINUSE|address already in use|listen EADDRINUSE" "$LOG"; then
-            DIAG_TITLE="Port already in use (EADDRINUSE)"
-            DIAG_HINTS=$'* The backend tried to bind to a port that is already taken.\n* Fix:\n  - Ensure the server uses the expected port (3000) or make it configurable.\n  - Ensure no previous process is running in CI (should be clean, but can happen if start/stop logic changes).'
-          elif grep -qiE "Cannot find module|ERR_MODULE_NOT_FOUND|Module not found" "$LOG"; then
-            DIAG_TITLE="Missing module / build-time import error"
-            DIAG_HINTS=$'* A dependency or import path is missing/broken.\n* Fix:\n  - Check recent path alias changes (@/...) and tsconfig paths.\n  - Ensure the file exists and exports match.\n  - Run locally: pnpm --filter gpt-backend dev'
-          elif grep -qiE "SyntaxError|TypeError|ReferenceError|UnhandledPromiseRejection|unhandled rejection" "$LOG"; then
-            DIAG_TITLE="Runtime crash (JS/TS error)"
-            DIAG_HINTS=$'* The backend started but crashed due to a runtime error.\n* Fix:\n  - Look for the first stack trace above the tail.\n  - Reproduce locally with same Node version if possible.'
-          elif grep -qiE "OPENAI_API_KEY inválida|invalid_api_key|Incorrect API key" "$LOG"; then
-            DIAG_TITLE="OpenAI API key invalid/missing"
-            DIAG_HINTS=$'* The backend attempted to use OpenAI but the key is missing/invalid.\n* Fix:\n  - GitHub → Settings → Secrets → Actions:\n    - Set OPENAI_API_KEY\n    - Optionally set AI_PROVIDER=openai\n  - Rotate leaked keys.'
-          elif grep -qiE "insufficient_quota|You exceeded your current quota|billing|No credit|quota" "$LOG"; then
-            DIAG_TITLE="OpenAI quota/billing issue"
-            DIAG_HINTS=$'* The key is accepted but the account/project has no credit or hit quota limits.\n* Fix:\n  - Check provider billing/quota.\n  - Use a project/key with credit.\n  - Consider fallback providers later (multi-AI is already prepared).'
-          elif grep -qiE "429|rate limit" "$LOG"; then
-            DIAG_TITLE="Rate limit (429) from provider or upstream"
-            DIAG_HINTS=$'* The provider (or a gateway) rate-limited the request.\n* Fix:\n  - Retry (CI already retries OpenAI 429/5xx).\n  - Reduce traffic or add backoff if needed.'
-          elif grep -qiE "ECONNREFUSED|connect ECONNREFUSED|socket hang up|ENOTFOUND|getaddrinfo" "$LOG"; then
-            DIAG_TITLE="Networking / connection error"
-            DIAG_HINTS=$'* The backend could not connect to something (or curl could not connect to it).\n* Fix:\n  - Check BASE_URL/port.\n  - Ensure server starts before curls.\n  - Avoid external DNS/network calls in CI.'
-          elif grep -qiE "Falta OPENAI_API_KEY|Falta ANTHROPIC_API_KEY|Falta GOOGLE_API_KEY|Falta MISTRAL_API_KEY|Falta la API key" "$LOG"; then
-            DIAG_TITLE="Missing provider secret"
-            DIAG_HINTS=$'* AI_PROVIDER is set but the required secret is missing.\n* Fix:\n  - GitHub → Settings → Secrets → Actions:\n    - Set AI_PROVIDER appropriately\n    - Set the matching API key secret'
-          fi
-
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🧠 Auto-diagnosis"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Diagnosis: $DIAG_TITLE"
-          echo ""
-          printf "%b\n" "$DIAG_HINTS"
-          echo ""
-
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📌 Log highlights (grep)"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Provider/keywords:"
-          grep -niE "openai|anthropic|mistral|google|api[_ -]?key|quota|billing|insufficient|429|rate|invalid" "$LOG" | head -n 30 || true
-          echo ""
 
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🧾 Last 140 lines of backend-smoke.log"
