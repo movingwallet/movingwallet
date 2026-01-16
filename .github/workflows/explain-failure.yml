@@ -80,3 +80,53 @@ jobs:
           echo "🧾 Last 140 lines of backend-smoke.log"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           tail -n 140 "$LOG" || true
+
+  pushover:
+    needs: [explain]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Download smoke logs (best-effort)"
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-smoke-logs
+          path: logs
+        continue-on-error: true
+
+      - name: "Send Pushover notification"
+        env:
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+        run: |
+          set -e
+
+          # If secrets not configured, skip silently
+          if [ -z "$PUSHOVER_APP_TOKEN" ] || [ -z "$PUSHOVER_USER_KEY" ]; then
+            echo "Pushover secrets missing. Skipping."
+            exit 0
+          fi
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TITLE="❌ Workflow FAILED: ${{ github.workflow }}"
+          HEADER="Repo: ${{ github.repository }} | Branch: ${{ github.ref_name }} | Actor: ${{ github.actor }}"
+
+          LOG="logs/backend-smoke.log"
+          TAIL=""
+          if [ -f "$LOG" ]; then
+            # Last 20 lines, compacted to avoid huge payload
+            TAIL="$(tail -n 20 "$LOG" | sed 's/[[:cntrl:]]//g' | tr '\n' ' ' | cut -c1-700)"
+          fi
+
+          MSG="$HEADER | Reason: ${{ inputs.reason }} | $RUN_URL"
+          if [ -n "$TAIL" ]; then
+            MSG="$MSG | LogTail: $TAIL"
+          fi
+
+          curl -s \
+            --form-string "token=$PUSHOVER_APP_TOKEN" \
+            --form-string "user=$PUSHOVER_USER_KEY" \
+            --form-string "title=$TITLE" \
+            --form-string "message=$MSG" \
+            --form-string "url=$RUN_URL" \
+            --form-string "url_title=Open GitHub Run" \
+            https://api.pushover.net/1/messages.json
