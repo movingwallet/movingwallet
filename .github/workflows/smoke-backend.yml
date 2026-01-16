@@ -1,82 +1,78 @@
 name: Smoke Backend
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+  workflow_call:
+    inputs:
+      base_url:
+        description: "Base URL for the backend (default: local dev server)"
+        required: false
+        type: string
+        default: "http://127.0.0.1:3000"
+    secrets:
+      OPENAI_API_KEY:
+        required: false
 
 jobs:
   smoke-backend:
     runs-on: ubuntu-latest
 
     steps:
-      # ⬇️ Checkout
-      - name: ⬇️ Checkout repo
+      - name: "Checkout"
         uses: actions/checkout@v4
 
-      # 🧩 Setup pnpm
-      - name: 🧩 Setup pnpm
+      - name: "Setup pnpm"
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: "9"
 
-      # 🟢 Setup Node
-      - name: 🟢 Setup Node.js
+      - name: "Setup Node"
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: pnpm
+          node-version: "20"
+          cache: "pnpm"
 
-      # 📦 Install deps
-      - name: 📦 Install dependencies
+      - name: "Install deps"
         run: pnpm install --frozen-lockfile
 
-      # ▶️ Start backend (background)
-      - name: ▶️ Start backend
+      - name: "Unit tests"
+        run: pnpm test
+
+      - name: "Start backend (smoke)"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          cd apps/gpt-backend
-          pnpm dev > backend-smoke.log 2>&1 &
+          set -e
+          pnpm --filter gpt-backend dev > backend-smoke.log 2>&1 &
           echo $! > backend-smoke.pid
 
-      # ⏳ Wait for /health
-      - name: ⏳ Wait for /health
+      - name: "Wait for /health"
+        env:
+          BASE_URL: ${{ inputs.base_url }}
         run: |
-          for i in {1..20}; do
-            if curl -sSf http://127.0.0.1:3000/health > /dev/null; then
-              echo "✅ Backend is healthy"
+          set -e
+          for i in {1..60}; do
+            if curl -sSf "$BASE_URL/health" > /dev/null; then
+              echo "OK: /health ready"
               exit 0
             fi
-            echo "⏳ Waiting for backend..."
-            sleep 2
+            sleep 1
           done
-          echo "❌ Backend did not become healthy"
+          echo "ERROR: /health did not become ready"
+          echo "—— backend-smoke.log (tail) ——"
+          tail -n 200 backend-smoke.log || true
           exit 1
 
-      # 🔎 Smoke: /api/ping
-      - name: "🔎 Smoke: GET /api/ping"
+      - name: "Smoke: GET /api/ping"
+        env:
+          BASE_URL: ${{ inputs.base_url }}
         run: |
-          curl -sSf http://127.0.0.1:3000/api/ping | head -c 400
+          set -e
+          curl -sSf "$BASE_URL/api/ping" | head -c 400
           echo
 
-      # 🔎 Smoke: /api/debug/openai (diagnostic)
-      - name: "🔎 Smoke: GET /api/debug/openai"
-        run: |
-          curl -sSf http://127.0.0.1:3000/api/debug/openai | head -c 400
-          echo
-
-      # 🛑 Stop backend (SIEMPRE)
-      - name: 🛑 Stop backend
+      - name: "Stop backend (always)"
         if: always()
         run: |
-          if [ -f apps/gpt-backend/backend-smoke.pid ]; then
-            kill -9 $(cat apps/gpt-backend/backend-smoke.pid) 2>/dev/null || true
+          if [ -f backend-smoke.pid ]; then
+            kill -9 "$(cat backend-smoke.pid)" 2>/dev/null || true
           fi
-
-      # 📦 Upload logs si falla
-      - name: 📦 Upload smoke logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-smoke-logs
-          path: apps/gpt-backend/backend-smoke.log

@@ -97,3 +97,70 @@ Desde la raíz:
 
 ### A) “Missing OPENAI_API_KEY”
 No debería tumbar el servidor si el backend
+
+
+
+
+# Tests & Smoke checks
+
+Este repo usa CI en GitHub Actions. La intención es:
+- detectar fallos rápido
+- explicar cada fallo
+- evitar bloqueos tontos (ej: YAML, secretos, etc.)
+
+## Workflows
+
+### CI (`.github/workflows/ci.yml`)
+Orquesta la ejecución llamando a workflows reutilizables.
+
+### Smoke Backend (`.github/workflows/smoke-backend.yml`)
+Objetivo: validar que el backend:
+- instala dependencias
+- pasa tests unitarios
+- arranca
+- responde a endpoints básicos
+
+---
+
+## Checks (qué prueba cada uno)
+
+### 1) Unit tests
+**Qué prueba:** lógica del backend (vitest).
+**Si falla:** romperá CI antes de levantar servidor.
+**Acción:** mirar el output de vitest y corregir el test o la lógica.
+
+### 2) Wait for `/health`
+**Qué prueba:** que el servidor arranca y acepta tráfico.
+**Si falla:**
+- el server no arrancó
+- puerto incorrecto
+- fallo de runtime (crash)
+**Acción:** revisar `backend-smoke.log` en los logs del job.
+
+### 3) Smoke: GET `/api/ping`
+**Qué prueba:** routing básico del API.
+**Si falla:**
+- rutas cambiadas
+- middleware/headers rompen respuesta
+- server no está listo realmente
+**Acción:** revisar logs y probar local con curl.
+
+---
+
+## Caso real: OpenAI sin saldo / API key inválida
+
+**Síntoma típico:**
+- endpoints que llaman a OpenAI fallan con 401/429
+- en logs aparece error de API key o “insufficient_quota”
+
+**Causa:**
+- `OPENAI_API_KEY` inválida o sin crédito
+- el secret no está configurado en GitHub
+
+**Acción:**
+1) En GitHub → Settings → Secrets and variables → Actions
+2) Añadir/actualizar `OPENAI_API_KEY`
+3) Rotar la key si se filtró
+4) Re-ejecutar workflow
+
+Nota: En CI no se suben `.env`. Todo va por Secrets.
