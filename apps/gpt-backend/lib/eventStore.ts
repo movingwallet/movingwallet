@@ -121,7 +121,10 @@ export class EventStore {
     if (q.kind) res = res.filter((e) => e.kind === q.kind);
     if (q.source) res = res.filter((e) => e.source === q.source);
     if (q.severity) res = res.filter((e) => e.severity === q.severity);
-    if (q.tag) res = res.filter((e) => (e.tags || []).includes(q.tag));
+   if (typeof q.tag === "string" && q.tag.length > 0) {
+  const tag = q.tag;
+  res = res.filter((e) => (e.tags || []).includes(tag));
+}
 
     return res.slice(0, limit);
   }

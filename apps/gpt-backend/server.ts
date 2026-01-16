@@ -33,8 +33,11 @@ import openaiDebugRoute from "./routes/debug/openai";
 import diagnosticsRoute from "./routes/debug/diagnostics";
 import aiDebugRoute from "./routes/debug/ai";
 
-// NEW: Event store routes
+// Events
 import eventsRoute from "./routes/events";
+
+// NEW: GitHub write (issues)
+import githubIssuesRoute from "./routes/github/issues";
 
 /**
  * ✅ ENV LOADING (monorepo-safe)
@@ -200,8 +203,11 @@ export function createApp() {
   app.use("/api", diagnosticsRoute);
   app.use("/api", aiDebugRoute);
 
-  // NEW: Events (requires auth token)
+  // Events (auth required)
   app.use("/api", eventsRoute);
+
+  // NEW: GitHub write (auth required)
+  app.use("/api", githubIssuesRoute);
 
   /**
    * ✅ Error handler global (con traceId)
