@@ -1,0 +1,82 @@
+name: Smoke Backend
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  smoke-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ⬇️ Checkout
+      - name: ⬇️ Checkout repo
+        uses: actions/checkout@v4
+
+      # 🧩 Setup pnpm
+      - name: 🧩 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # 🟢 Setup Node
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+
+      # 📦 Install deps
+      - name: 📦 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ▶️ Start backend (background)
+      - name: ▶️ Start backend
+        run: |
+          cd apps/gpt-backend
+          pnpm dev > backend-smoke.log 2>&1 &
+          echo $! > backend-smoke.pid
+
+      # ⏳ Wait for /health
+      - name: ⏳ Wait for /health
+        run: |
+          for i in {1..20}; do
+            if curl -sSf http://127.0.0.1:3000/health > /dev/null; then
+              echo "✅ Backend is healthy"
+              exit 0
+            fi
+            echo "⏳ Waiting for backend..."
+            sleep 2
+          done
+          echo "❌ Backend did not become healthy"
+          exit 1
+
+      # 🔎 Smoke: /api/ping
+      - name: "🔎 Smoke: GET /api/ping"
+        run: |
+          curl -sSf http://127.0.0.1:3000/api/ping | head -c 400
+          echo
+
+      # 🔎 Smoke: /api/debug/openai (diagnostic)
+      - name: "🔎 Smoke: GET /api/debug/openai"
+        run: |
+          curl -sSf http://127.0.0.1:3000/api/debug/openai | head -c 400
+          echo
+
+      # 🛑 Stop backend (SIEMPRE)
+      - name: 🛑 Stop backend
+        if: always()
+        run: |
+          if [ -f apps/gpt-backend/backend-smoke.pid ]; then
+            kill -9 $(cat apps/gpt-backend/backend-smoke.pid) 2>/dev/null || true
+          fi
+
+      # 📦 Upload logs si falla
+      - name: 📦 Upload smoke logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-smoke-logs
+          path: apps/gpt-backend/backend-smoke.log

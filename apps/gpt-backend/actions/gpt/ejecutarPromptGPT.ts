@@ -9,11 +9,7 @@ import {
 let _client: OpenAI | null = null;
 
 function sanitizeKey(raw: string) {
-  return raw
-    .trim()
-    .replace(/^"(.*)"$/, "$1")
-    .replace(/^'(.*)'$/, "$1")
-    .trim();
+  return raw.trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim();
 }
 
 function getClient() {
@@ -49,10 +45,7 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export async function ejecutarPromptGPT(
-  prompt: string,
-  meta: PromptMeta = {}
-) {
+export async function ejecutarPromptGPT(prompt: string, meta: PromptMeta = {}) {
   const env = loadEnv();
   const client = getClient();
 
@@ -64,8 +57,7 @@ export async function ejecutarPromptGPT(
   }
 
   const model = meta.model || env.OPENAI_MODEL || "gpt-4o-mini";
-  const temperature =
-    typeof meta.temperature === "number" ? meta.temperature : 0.2;
+  const temperature = typeof meta.temperature === "number" ? meta.temperature : 0.2;
 
   let lastError: any;
 
@@ -81,7 +73,6 @@ export async function ejecutarPromptGPT(
       });
 
       recordSuccess();
-
       return (completion.choices?.[0]?.message?.content || "").trim();
     } catch (error: any) {
       lastError = error;
@@ -89,7 +80,6 @@ export async function ejecutarPromptGPT(
 
       const status = error?.status;
 
-      // Reintento solo para 429 y 5xx
       if (status === 429 || (status >= 500 && status <= 599)) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
         console.warn(
@@ -99,7 +89,6 @@ export async function ejecutarPromptGPT(
         continue;
       }
 
-      // Errores definitivos
       throw error;
     }
   }

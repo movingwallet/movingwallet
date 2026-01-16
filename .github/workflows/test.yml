@@ -9,12 +9,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TURBO_TELEMETRY_DISABLED: "1"
+      NODE_ENV: test
+      LOG_LEVEL: silent
+      VITEST: "1"
+      # Evita que en CI se rompa el schema/env si no hay secret real:
+      OPENAI_API_KEY: "sk-test"
+      API_TOKENS: "token2dev"
+
     steps:
-      # 2026-01: usamos versiones actuales de acciones (v4) por seguridad/compat.
       - name: ⬇️ Checkout repo
         uses: actions/checkout@v4
 
-      # 2026-01: instalamos pnpm explícitamente (evita fallos en runners limpios).
       - name: 🧩 Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -23,22 +32,40 @@ jobs:
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: pnpm
 
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: 🧪 Run tests
-        run: pnpm test
+      # Guardamos logs de test en archivo para subirlo si falla
+      - name: 🧪 Run tests (turbo)
+        run: |
+          pnpm test 2>&1 | tee test-output.log
 
-      # 2026-01: el “if: failure()” debe ir en un STEP (no a nivel job con otro steps).
+      # Subimos artifacts SOLO si falla
+      - name: 📦 Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          path: |
+            test-output.log
+            apps/gpt-backend/test-output.log
+            apps/gpt-backend/vitest.config.ts
+            apps/gpt-backend/tests
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: 🚨 Send Pushover notification on failure
         if: failure()
+        env:
+          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
         run: |
           curl -s \
-            --form-string "token=${{ secrets.PUSHOVER_API_TOKEN }}" \
-            --form-string "user=${{ secrets.PUSHOVER_USER_KEY }}" \
+            --form-string "token=${PUSHOVER_API_TOKEN}" \
+            --form-string "user=${PUSHOVER_USER_KEY}" \
             --form-string "title=🚨 Tests Failed" \
-            --form-string "message=El workflow de tests ha fallado en ${{ github.repository }} 🚨\nBranch: ${{ github.ref_name }}\nAutor: ${{ github.actor }}" \
+            --form-string "message=El workflow de tests ha fallado en ${{ github.repository }} 🚨\nBranch: ${{ github.ref_name }}\nAutor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             https://api.pushover.net/1/messages.json
