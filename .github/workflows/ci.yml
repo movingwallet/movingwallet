@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  smoke-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+
+      - name: "Install deps"
+        run: pnpm install --frozen-lockfile
+
+      - name: "Test"
+        run: pnpm test
+
+      - name: "Start backend (smoke)"
+        run: |
+          set -e
+          pnpm --filter gpt-backend dev > backend-smoke.log 2>&1 &
+          echo $! > backend-smoke.pid
+
+      - name: "🔎 Wait for /health"
+        run: |
+          set -e
+          for i in {1..60}; do
+            if curl -sSf http://127.0.0.1:3000/health > /dev/null; then
+              echo "✅ /health OK"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ /health did not become ready"
+          echo "—— backend-smoke.log (tail) ——"
+          tail -n 200 backend-smoke.log || true
+          exit 1
+
+      - name: "🔎 Smoke: GET /api/ping"
+        run: |
+          set -e
+          curl -sSf http://127.0.0.1:3000/api/ping | head -c 400
+          echo
+
+      - name: "🔎 Smoke: GET /api/debug/openai (diagnostic)"
+        run: |
+          set -e
+          # IMPORTANT: This endpoint might require real OpenAI.
+          curl -sSf http://127.0.0.1:3000/api/debug/openai | head -c 800
+          echo
+
+      - name: "🛑 Stop backend (always)"
+        if: always()
+        run: |
+          if [ -f backend-smoke.pid ]; then
+            kill -9 "$(cat backend-smoke.pid)" 2>/dev/null || true
+          fi
