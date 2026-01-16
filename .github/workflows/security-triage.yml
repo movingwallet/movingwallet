@@ -1,0 +1,62 @@
+name: Security Triage
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+jobs:
+  pnpm-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: "Install deps"
+        run: pnpm install --frozen-lockfile
+
+      - name: "Run pnpm audit (non-blocking)"
+        run: |
+          set -e
+          pnpm audit --json > pnpm-audit.json || true
+          echo "Saved pnpm-audit.json"
+
+      - name: "Show quick summary"
+        run: |
+          set -e
+          node - <<'NODE'
+          const fs = require("fs");
+          let data = {};
+          try { data = JSON.parse(fs.readFileSync("pnpm-audit.json","utf8") || "{}"); } catch {}
+          // pnpm audit JSON format can vary by version; we keep this resilient.
+          const meta = data.metadata || {};
+          const vulns = meta.vulnerabilities || meta.vulns || {};
+          const keys = ["critical","high","moderate","low","info"];
+          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          console.log("🛡️  PNPM AUDIT SUMMARY (best-effort)");
+          console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+          for (const k of keys) {
+            if (typeof vulns[k] === "number") console.log(`${k}: ${vulns[k]}`);
+          }
+          console.log("");
+          console.log("If GitHub Dependabot shows alerts but counts are empty here,");
+          console.log("use GitHub Security → Dependabot alerts as source of truth.");
+          NODE
+
+      - name: "Upload audit artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-audit
+          path: pnpm-audit.json
