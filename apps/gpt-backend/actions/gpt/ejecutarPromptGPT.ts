@@ -6,31 +6,48 @@ import {
   recordSuccess,
 } from "@/lib/openaiCircuitBreaker";
 
-let _client: OpenAI | null = null;
+import {
+  getAiProviderConfig,
+  validateProviderKey,
+} from "@/actions/gpt/aiProvider";
+
+let _openaiClient: OpenAI | null = null;
 
 function sanitizeKey(raw: string) {
   return raw.trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim();
 }
 
-function getClient() {
-  if (_client) return _client;
+function getOpenAIClient() {
+  if (_openaiClient) return _openaiClient;
 
   const env = loadEnv();
-  const key = sanitizeKey(env.OPENAI_API_KEY || "");
 
-  if (!key || !key.startsWith("sk-")) {
-    throw Object.assign(new Error("OPENAI_API_KEY inválida o no definida"), {
+  const cfg = getAiProviderConfig();
+  if (cfg.provider !== "openai") {
+    throw Object.assign(
+      new Error(
+        `AI_PROVIDER="${cfg.provider}" aún no está implementado en ejecutarPromptGPT().`
+      ),
+      { status: 501, code: "ai_provider_not_implemented" }
+    );
+  }
+
+  const key = sanitizeKey(cfg.apiKey || "");
+  const keyCheck = validateProviderKey("openai", key);
+
+  if (!keyCheck.ok) {
+    throw Object.assign(new Error(keyCheck.reason || "OPENAI_API_KEY inválida"), {
       status: 401,
       code: "invalid_api_key",
     });
   }
 
-  _client = new OpenAI({
+  _openaiClient = new OpenAI({
     apiKey: key,
     baseURL: env.OPENAI_BASE_URL || undefined,
   });
 
-  return _client;
+  return _openaiClient;
 }
 
 type PromptMeta = {
@@ -47,7 +64,24 @@ function sleep(ms: number) {
 
 export async function ejecutarPromptGPT(prompt: string, meta: PromptMeta = {}) {
   const env = loadEnv();
-  const client = getClient();
+  const cfg = getAiProviderConfig();
+
+  // Por ahora solo OpenAI está implementado aquí.
+  // Esto deja preparado el sistema para añadir providers rápido y con cambios controlados.
+  if (cfg.provider !== "openai") {
+    throw Object.assign(
+      new Error(
+        `AI_PROVIDER="${cfg.provider}" configurado pero aún no implementado en ejecutarPromptGPT().`
+      ),
+      {
+        status: 501,
+        code: "ai_provider_not_implemented",
+        provider: cfg.provider,
+      }
+    );
+  }
+
+  const client = getOpenAIClient();
 
   if (!canCallOpenAI()) {
     throw Object.assign(new Error("OpenAI circuit breaker OPEN"), {
@@ -57,7 +91,8 @@ export async function ejecutarPromptGPT(prompt: string, meta: PromptMeta = {}) {
   }
 
   const model = meta.model || env.OPENAI_MODEL || "gpt-4o-mini";
-  const temperature = typeof meta.temperature === "number" ? meta.temperature : 0.2;
+  const temperature =
+    typeof meta.temperature === "number" ? meta.temperature : 0.2;
 
   let lastError: any;
 
