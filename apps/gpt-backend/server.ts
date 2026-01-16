@@ -36,11 +36,14 @@ import aiDebugRoute from "./routes/debug/ai";
 // Events
 import eventsRoute from "./routes/events";
 
-// NEW: GitHub write (issues)
+// GitHub write
 import githubIssuesRoute from "./routes/github/issues";
+import githubPrRoute from "./routes/github/pr";
 
 /**
- * ✅ ENV LOADING (monorepo-safe)
+ * ✅ ENV LOADING (monorepo-safe, root-only)
+ * - ENV_PATH (override) if set
+ * - repo root .env only
  */
 function loadEnvMonorepoSafe() {
   const loadedEnvPaths: string[] = [];
@@ -51,7 +54,6 @@ function loadEnvMonorepoSafe() {
     : null;
 
   const repoRootEnv = path.resolve(cwd, "../../.env");
-  const localEnv = path.resolve(cwd, ".env");
 
   // 1) ENV_PATH fuerza override
   if (envPathFromVar && fs.existsSync(envPathFromVar)) {
@@ -65,13 +67,7 @@ function loadEnvMonorepoSafe() {
     loadedEnvPaths.push(repoRootEnv);
   }
 
-  // 3) local (sin override)
-  if (fs.existsSync(localEnv)) {
-    dotenv.config({ path: localEnv });
-    loadedEnvPaths.push(localEnv);
-  }
-
-  // 4) fallback
+  // 3) fallback
   if (loadedEnvPaths.length === 0) {
     dotenv.config();
     loadedEnvPaths.push("process.env");
@@ -141,8 +137,6 @@ export function createApp() {
 
   /**
    * ✅ Mongo (opcional)
-   * - En tests: no intentamos conectar ni avisamos (ruido cero)
-   * - En dev/prod: mismo comportamiento que antes
    */
   if (!isTestRun()) {
     if (env.MONGO_URI) {
@@ -203,11 +197,12 @@ export function createApp() {
   app.use("/api", diagnosticsRoute);
   app.use("/api", aiDebugRoute);
 
-  // Events (auth required)
+  // Events
   app.use("/api", eventsRoute);
 
-  // NEW: GitHub write (auth required)
+  // GitHub write
   app.use("/api", githubIssuesRoute);
+  app.use("/api", githubPrRoute);
 
   /**
    * ✅ Error handler global (con traceId)
