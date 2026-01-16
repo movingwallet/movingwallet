@@ -1,0 +1,49 @@
+
+
+name: Pushover Notify (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      title:
+        required: true
+        type: string
+      message:
+        required: true
+        type: string
+      url:
+        required: false
+        type: string
+      url_title:
+        required: false
+        type: string
+    secrets:
+      PUSHOVER_APP_TOKEN:
+        required: true
+      PUSHOVER_USER_KEY:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Pushover notification
+        run: |
+          TITLE="${{ inputs.title }}"
+          MSG="${{ inputs.message }}"
+          URL="${{ inputs.url }}"
+          URL_TITLE="${{ inputs.url_title }}"
+
+          if [ -z "${{ secrets.PUSHOVER_APP_TOKEN }}" ] || [ -z "${{ secrets.PUSHOVER_USER_KEY }}" ]; then
+            echo "Pushover secrets not set. Skipping."
+            exit 0
+          fi
+
+          curl -s \
+            --form-string "token=${{ secrets.PUSHOVER_APP_TOKEN }}" \
+            --form-string "user=${{ secrets.PUSHOVER_USER_KEY }}" \
+            --form-string "title=${TITLE}" \
+            --form-string "message=${MSG}" \
+            ${URL:+--form-string "url=${URL}"} \
+            ${URL_TITLE:+--form-string "url_title=${URL_TITLE}"} \
+            https://api.pushover.net/1/messages.json
