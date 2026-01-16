@@ -33,6 +33,9 @@ import openaiDebugRoute from "./routes/debug/openai";
 import diagnosticsRoute from "./routes/debug/diagnostics";
 import aiDebugRoute from "./routes/debug/ai";
 
+// NEW: Event store routes
+import eventsRoute from "./routes/events";
+
 /**
  * ✅ ENV LOADING (monorepo-safe)
  */
@@ -196,6 +199,9 @@ export function createApp() {
   app.use("/api", openaiDebugRoute);
   app.use("/api", diagnosticsRoute);
   app.use("/api", aiDebugRoute);
+
+  // NEW: Events (requires auth token)
+  app.use("/api", eventsRoute);
 
   /**
    * ✅ Error handler global (con traceId)
