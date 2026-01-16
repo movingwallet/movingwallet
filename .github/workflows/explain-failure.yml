@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: "smoke-backend failed"
+      ai_provider:
+        description: "AI provider used in smoke run"
+        required: false
+        type: string
+        default: "openai"
 
 jobs:
   explain:
@@ -29,6 +34,7 @@ jobs:
           echo "Context:"
           echo "- Job: smoke-backend"
           echo "- Reason: ${{ inputs.reason }}"
+          echo "- AI provider: ${{ inputs.ai_provider }}"
           echo ""
           echo "Most common causes:"
           echo "1) Backend did not start"
@@ -39,22 +45,26 @@ jobs:
           echo "   - Infinite boot"
           echo "   - Missing env vars"
           echo ""
-          echo "3) OpenAI issues (very common)"
-          echo "   - OPENAI_API_KEY missing"
-          echo "   - Invalid key"
-          echo "   - No credit / insufficient quota"
+          echo "3) AI provider credentials / quota"
+          echo "   - Missing API key for the selected provider"
+          echo "   - Invalid API key"
+          echo "   - No credit / insufficient quota (provider dependent)"
+          echo ""
+          echo "Provider-specific hints:"
+          echo "- openai: set OPENAI_API_KEY in GitHub Secrets; check quota/credit"
+          echo "- anthropic: set ANTHROPIC_API_KEY in GitHub Secrets"
+          echo "- google: set GOOGLE_API_KEY in GitHub Secrets"
+          echo "- mistral: set MISTRAL_API_KEY in GitHub Secrets"
           echo ""
           echo "What to do next:"
           echo "- Check artifact: backend-smoke.log"
-          echo "- If OpenAI error appears:"
-          echo "  → GitHub Settings → Secrets → Actions"
-          echo "  → Set OPENAI_API_KEY"
-          echo "  → Ensure the key has credit"
+          echo "- Check GitHub → Settings → Secrets → Actions"
+          echo "- Ensure AI_PROVIDER matches the key you configured"
           echo ""
-          echo "Last 80 lines of backend-smoke.log:"
+          echo "Last 120 lines of backend-smoke.log:"
           echo "------------------------------------"
           if [ -f logs/backend-smoke.log ]; then
-            tail -n 80 logs/backend-smoke.log || true
+            tail -n 120 logs/backend-smoke.log || true
           else
             echo "(no log file found)"
           fi

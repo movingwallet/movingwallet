@@ -1,15 +1,35 @@
 # Tests & CI (MovingWallet)
 
-Este repositorio usa un flujo CI en GitHub Actions que ejecuta:
+Este repositorio usa CI en GitHub Actions para validar:
 
-1) **Smoke backend** (arranca servidor real + peticiones HTTP con curl)
+1) **Smoke backend** (arranca servidor real + peticiones HTTP con `curl`)
 2) **Tests** (Vitest vía `pnpm test` con TurboRepo)
+3) **Diagnóstico cuando falla** (logs + resumen humano)
 
 La idea es detectar:
 - que el backend levanta,
 - que los endpoints esenciales existen,
-- que no dependemos de servicios externos para validar “salud” del sistema,
-- y que cuando falle, haya logs/artifacts para diagnosticar rápido.
+- que el sistema no depende de servicios externos para probar “salud”,
+- y que cuando falle, haya logs/artifacts + pistas accionables.
+
+---
+
+## Workflows
+
+### CI (`.github/workflows/ci.yml`)
+Orquesta y encadena workflows reutilizables.
+
+### Smoke Backend (`.github/workflows/smoke-backend.yml`)
+Objetivo: validar que el backend:
+- instala dependencias
+- pasa tests unitarios
+- arranca
+- responde a endpoints básicos
+- sube logs (`backend-smoke.log`) como artifact siempre (aunque falle)
+
+### Explain Failure (`.github/workflows/explain-failure.yml`)
+Solo se ejecuta si falla el smoke.
+Imprime un resumen “humano” + hints y muestra el final de `backend-smoke.log`.
 
 ---
 
@@ -17,19 +37,19 @@ La idea es detectar:
 
 ### Qué hace
 - Instala dependencias (pnpm).
+- Ejecuta tests (Vitest vía `pnpm test`).
 - Arranca `apps/gpt-backend` en background.
-- Espera a que `/health` responda 200.
+- Espera a que `/health` responda `200`.
 - Ejecuta:
   - `GET /api/ping`
-  - `GET /api/debug/openai` (modo diagnóstico: **no requiere key real**)
-- Si falla: sube `backend-smoke.log` como artifact.
+- Si falla: sube `backend-smoke.log` como artifact y ejecuta “Explain Failure”.
 
 ### Por qué existe
 A veces los tests unitarios pasan pero el servidor:
 - no arranca por un error de env,
 - falla al cargar rutas,
 - crashea por imports,
-- o rompe por un cambio en el runtime.
+- o rompe por un cambio en runtime.
 
 El smoke lo caza de inmediato porque ejecuta el backend “de verdad”.
 
@@ -40,45 +60,40 @@ El smoke lo caza de inmediato porque ejecuta el backend “de verdad”.
 Los tests están en `apps/gpt-backend/tests/`.
 
 ### `smoke.test.ts`
-Es un test de “contrato mínimo” del backend.
+Test de “contrato mínimo” del backend.
 
-Comprueba:
+Comprueba (orientativo, puede variar según implementación):
 
 1) `GET /health`
 - Debe responder `200`
-- Debe devolver `{ status: "ok", traceId: "..." }` (o equivalente)
-- Sirve para verificar que el server está vivo.
+- Debe devolver `{ status: "ok", ... }` (o equivalente)
 
 2) `GET /api/ping`
 - Debe responder `200`
-- Debe devolver `{ status: "ok", timestamp: "..." }` (o equivalente)
-- Sirve para comprobar routing base y middlewares.
-
-3) `GET /api/debug/openai` (diagnóstico)
-- Debe responder `200`
-- Debe devolver una estructura JSON estable con campos de diagnóstico (ej: `hasKey`, `keyPrefix`, etc.)
-- **No depende de que OpenAI funcione**.
-
-#### Importante: OpenAI y “key válida pero sin saldo”
-En ocasiones el error no es “key incorrecta”, sino:
-- cuenta sin saldo / sin créditos,
-- “insufficient_quota”,
-- límites de facturación,
-- bloqueos del proyecto.
-
-Ese tipo de fallo aparece cuando se llama a la API real (por ejemplo al hacer un completions / responses).
-
-Para evitar que el CI sea frágil:
-- Los tests NO llaman a OpenAI.
-- Validan que el endpoint diagnóstico existe y da forma de respuesta consistente.
-
-**Recomendación operativa:**
-- Para verificar OpenAI en local, hacerlo a propósito con un endpoint “manual” o un flag,
-  pero nunca como requisito del CI.
+- Debe devolver `{ status: "ok", ... }` (o equivalente)
 
 ---
 
-## 3) Cómo ejecutar en local
+## 3) Multi-AI (preparado para varios proveedores)
+
+El sistema está preparado para cambiar de proveedor sin tocar la estructura del CI:
+
+- Selector:
+  - `AI_PROVIDER`: `openai` | `anthropic` | `google` | `mistral` | (otros en el futuro)
+
+- Secrets por proveedor (GitHub Actions Secrets):
+  - `OPENAI_API_KEY`
+  - `ANTHROPIC_API_KEY`
+  - `GOOGLE_API_KEY`
+  - `MISTRAL_API_KEY`
+
+CI pasa estas variables al backend durante el smoke. Si el proveedor seleccionado no tiene key configurada, el backend fallará y “Explain Failure” mostrará hints específicos.
+
+> Nota: en CI no se suben `.env`. Todo va por Secrets.
+
+---
+
+## 4) Cómo ejecutar en local
 
 Desde la raíz:
 
@@ -93,74 +108,42 @@ Desde la raíz:
 
 ---
 
-## 4) Troubleshooting rápido
+## 5) Troubleshooting rápido
 
-### A) “Missing OPENAI_API_KEY”
-No debería tumbar el servidor si el backend
+### A) El smoke falla esperando `/health`
+Causas típicas:
+- El server no arranca / crashea
+- Puerto incorrecto
+- Falta alguna variable de entorno requerida
 
+Acción:
+- Revisar el artifact `backend-smoke.log` en GitHub Actions.
+- Buscar errores de arranque (imports, config, runtime).
 
+### B) Fallos por credenciales / cuotas del proveedor IA (caso real)
+Síntomas típicos:
+- 401 / 403 (key inválida, proyecto incorrecto, permisos)
+- 429 (rate limit) o mensajes tipo “insufficient_quota”
+- logs del backend muestran errores del proveedor
 
+Causas:
+- `AI_PROVIDER` apunta a un proveedor sin key configurada
+- key inválida o revocada
+- cuenta sin saldo / límites de facturación / cuota agotada
 
-# Tests & Smoke checks
-
-Este repo usa CI en GitHub Actions. La intención es:
-- detectar fallos rápido
-- explicar cada fallo
-- evitar bloqueos tontos (ej: YAML, secretos, etc.)
-
-## Workflows
-
-### CI (`.github/workflows/ci.yml`)
-Orquesta la ejecución llamando a workflows reutilizables.
-
-### Smoke Backend (`.github/workflows/smoke-backend.yml`)
-Objetivo: validar que el backend:
-- instala dependencias
-- pasa tests unitarios
-- arranca
-- responde a endpoints básicos
-
----
-
-## Checks (qué prueba cada uno)
-
-### 1) Unit tests
-**Qué prueba:** lógica del backend (vitest).
-**Si falla:** romperá CI antes de levantar servidor.
-**Acción:** mirar el output de vitest y corregir el test o la lógica.
-
-### 2) Wait for `/health`
-**Qué prueba:** que el servidor arranca y acepta tráfico.
-**Si falla:**
-- el server no arrancó
-- puerto incorrecto
-- fallo de runtime (crash)
-**Acción:** revisar `backend-smoke.log` en los logs del job.
-
-### 3) Smoke: GET `/api/ping`
-**Qué prueba:** routing básico del API.
-**Si falla:**
-- rutas cambiadas
-- middleware/headers rompen respuesta
-- server no está listo realmente
-**Acción:** revisar logs y probar local con curl.
-
----
-
-## Caso real: OpenAI sin saldo / API key inválida
-
-**Síntoma típico:**
-- endpoints que llaman a OpenAI fallan con 401/429
-- en logs aparece error de API key o “insufficient_quota”
-
-**Causa:**
-- `OPENAI_API_KEY` inválida o sin crédito
-- el secret no está configurado en GitHub
-
-**Acción:**
-1) En GitHub → Settings → Secrets and variables → Actions
-2) Añadir/actualizar `OPENAI_API_KEY`
-3) Rotar la key si se filtró
+Acción:
+1) GitHub → Settings → Secrets and variables → Actions
+2) Configurar:
+   - `AI_PROVIDER` (ej: `openai`)
+   - la key correspondiente (ej: `OPENAI_API_KEY`)
+3) Verificar saldo/cuota en el proveedor
 4) Re-ejecutar workflow
 
-Nota: En CI no se suben `.env`. Todo va por Secrets.
+### C) “Push blocked: secrets detected”
+Causa:
+- se intentó commitear una key (ej: `sk-...`) o dumps con secretos
+
+Acción:
+- eliminar archivos del repo (ej: `.env`, dumps) y purgar historial si hizo falta
+- rotar keys filtradas
+- usar Secrets en GitHub Actions
