@@ -25,8 +25,12 @@ jobs:
           name: backend-smoke-logs
           path: logs
 
-      - name: "Explain failure (human summary)"
+      - name: "Explain failure (human summary + auto-classify)"
         run: |
+          set -e
+
+          LOG="logs/backend-smoke.log"
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "❌ CI FAILURE — HUMAN SUMMARY"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -36,35 +40,60 @@ jobs:
           echo "- Reason: ${{ inputs.reason }}"
           echo "- AI provider: ${{ inputs.ai_provider }}"
           echo ""
-          echo "Most common causes:"
-          echo "1) Backend did not start"
-          echo "   - Port already in use"
-          echo "   - Crash at startup"
-          echo ""
-          echo "2) /health never became ready"
-          echo "   - Infinite boot"
-          echo "   - Missing env vars"
-          echo ""
-          echo "3) AI provider credentials / quota"
-          echo "   - Missing API key for the selected provider"
-          echo "   - Invalid API key"
-          echo "   - No credit / insufficient quota (provider dependent)"
-          echo ""
-          echo "Provider-specific hints:"
-          echo "- openai: set OPENAI_API_KEY in GitHub Secrets; check quota/credit"
-          echo "- anthropic: set ANTHROPIC_API_KEY in GitHub Secrets"
-          echo "- google: set GOOGLE_API_KEY in GitHub Secrets"
-          echo "- mistral: set MISTRAL_API_KEY in GitHub Secrets"
-          echo ""
-          echo "What to do next:"
-          echo "- Check artifact: backend-smoke.log"
-          echo "- Check GitHub → Settings → Secrets → Actions"
-          echo "- Ensure AI_PROVIDER matches the key you configured"
-          echo ""
-          echo "Last 120 lines of backend-smoke.log:"
-          echo "------------------------------------"
-          if [ -f logs/backend-smoke.log ]; then
-            tail -n 120 logs/backend-smoke.log || true
-          else
-            echo "(no log file found)"
+
+          if [ ! -f "$LOG" ]; then
+            echo "No backend-smoke.log artifact found."
+            echo "Likely causes:"
+            echo "* backend never started"
+            echo "* artifact upload failed"
+            exit 0
           fi
+
+          DIAG_TITLE="Unknown failure"
+          DIAG_HINTS=$'Check backend-smoke.log tail and GitHub job logs.'
+
+          if grep -qiE "EADDRINUSE|address already in use|listen EADDRINUSE" "$LOG"; then
+            DIAG_TITLE="Port already in use (EADDRINUSE)"
+            DIAG_HINTS=$'* The backend tried to bind to a port that is already taken.\n* Fix:\n  - Ensure the server uses the expected port (3000) or make it configurable.\n  - Ensure no previous process is running in CI (should be clean, but can happen if start/stop logic changes).'
+          elif grep -qiE "Cannot find module|ERR_MODULE_NOT_FOUND|Module not found" "$LOG"; then
+            DIAG_TITLE="Missing module / build-time import error"
+            DIAG_HINTS=$'* A dependency or import path is missing/broken.\n* Fix:\n  - Check recent path alias changes (@/...) and tsconfig paths.\n  - Ensure the file exists and exports match.\n  - Run locally: pnpm --filter gpt-backend dev'
+          elif grep -qiE "SyntaxError|TypeError|ReferenceError|UnhandledPromiseRejection|unhandled rejection" "$LOG"; then
+            DIAG_TITLE="Runtime crash (JS/TS error)"
+            DIAG_HINTS=$'* The backend started but crashed due to a runtime error.\n* Fix:\n  - Look for the first stack trace above the tail.\n  - Reproduce locally with same Node version if possible.'
+          elif grep -qiE "OPENAI_API_KEY inválida|invalid_api_key|Incorrect API key" "$LOG"; then
+            DIAG_TITLE="OpenAI API key invalid/missing"
+            DIAG_HINTS=$'* The backend attempted to use OpenAI but the key is missing/invalid.\n* Fix:\n  - GitHub → Settings → Secrets → Actions:\n    - Set OPENAI_API_KEY\n    - Optionally set AI_PROVIDER=openai\n  - Rotate leaked keys.'
+          elif grep -qiE "insufficient_quota|You exceeded your current quota|billing|No credit|quota" "$LOG"; then
+            DIAG_TITLE="OpenAI quota/billing issue"
+            DIAG_HINTS=$'* The key is accepted but the account/project has no credit or hit quota limits.\n* Fix:\n  - Check provider billing/quota.\n  - Use a project/key with credit.\n  - Consider fallback providers later (multi-AI is already prepared).'
+          elif grep -qiE "429|rate limit" "$LOG"; then
+            DIAG_TITLE="Rate limit (429) from provider or upstream"
+            DIAG_HINTS=$'* The provider (or a gateway) rate-limited the request.\n* Fix:\n  - Retry (CI already retries OpenAI 429/5xx).\n  - Reduce traffic or add backoff if needed.'
+          elif grep -qiE "ECONNREFUSED|connect ECONNREFUSED|socket hang up|ENOTFOUND|getaddrinfo" "$LOG"; then
+            DIAG_TITLE="Networking / connection error"
+            DIAG_HINTS=$'* The backend could not connect to something (or curl could not connect to it).\n* Fix:\n  - Check BASE_URL/port.\n  - Ensure server starts before curls.\n  - Avoid external DNS/network calls in CI.'
+          elif grep -qiE "Falta OPENAI_API_KEY|Falta ANTHROPIC_API_KEY|Falta GOOGLE_API_KEY|Falta MISTRAL_API_KEY|Falta la API key" "$LOG"; then
+            DIAG_TITLE="Missing provider secret"
+            DIAG_HINTS=$'* AI_PROVIDER is set but the required secret is missing.\n* Fix:\n  - GitHub → Settings → Secrets → Actions:\n    - Set AI_PROVIDER appropriately\n    - Set the matching API key secret'
+          fi
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧠 Auto-diagnosis"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Diagnosis: $DIAG_TITLE"
+          echo ""
+          printf "%b\n" "$DIAG_HINTS"
+          echo ""
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📌 Log highlights (grep)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Provider/keywords:"
+          grep -niE "openai|anthropic|mistral|google|api[_ -]?key|quota|billing|insufficient|429|rate|invalid" "$LOG" | head -n 30 || true
+          echo ""
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🧾 Last 140 lines of backend-smoke.log"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          tail -n 140 "$LOG" || true
