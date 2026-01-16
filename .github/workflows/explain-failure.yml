@@ -11,122 +11,87 @@ on:
         required: false
         type: string
         default: "http://127.0.0.1:3000"
+      ai_provider:
+        required: false
+        type: string
+        default: "openai"
+    secrets:
+      PUSHOVER_APP_TOKEN:
+        required: false
+      PUSHOVER_USER_KEY:
+        required: false
 
 jobs:
   explain:
     runs-on: ubuntu-latest
 
     steps:
-      - name: "Download smoke logs"
+      - name: "Download smoke logs (if present)"
         uses: actions/download-artifact@v4
-        with:
-          name: backend-smoke-logs
-          path: logs
-
-      - name: "Explain failure (deterministic first, logs fallback)"
-        run: |
-          set -e
-
-          BASE_URL="${{ inputs.base_url }}"
-          LOG="logs/backend-smoke.log"
-          DEBUG_JSON="debug-ai.json"
-
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "❌ CI FAILURE — DIAGNOSTIC"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
-
-          # 1) Try deterministic diagnostic
-          if curl -sSf "$BASE_URL/api/debug/ai" > "$DEBUG_JSON"; then
-            echo "🧠 Deterministic diagnostic from /api/debug/ai"
-            echo ""
-
-            node - <<'NODE'
-            const fs = require("fs");
-            const d = JSON.parse(fs.readFileSync("debug-ai.json","utf8"));
-
-            const event = {
-              source: "ci",
-              kind: "ai_diagnostic",
-              provider: d.provider,
-              hasKey: d.hasKey,
-              keyCheck: d.keyCheck,
-              circuit: d?.openai?.circuitBreaker?.state || null,
-              model: d?.openai?.model || null,
-              baseURL: d?.openai?.baseURL || null,
-              timestamp: new Date().toISOString(),
-              env: "ci"
-            };
-
-            console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            console.log("📦 Structured diagnostic event");
-            console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            console.log(JSON.stringify(event, null, 2));
-            NODE
-
-            exit 0
-          fi
-
-          # 2) Fallback to logs
-          echo "⚠️ /api/debug/ai not reachable. Falling back to logs."
-          echo ""
-
-          if [ ! -f "$LOG" ]; then
-            echo "No backend-smoke.log artifact found."
-            exit 0
-          fi
-
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🧾 Last 140 lines of backend-smoke.log"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          tail -n 140 "$LOG" || true
-
-  pushover:
-    needs: [explain]
-    if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Download smoke logs (best-effort)"
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-smoke-logs
-          path: logs
         continue-on-error: true
+        with:
+          name: backend-smoke-logs
+          path: logs
 
-      - name: "Send Pushover notification"
+      - name: "Explain failure + send Pushover (only on failures)"
         env:
+          BASE_URL: ${{ inputs.base_url }}
+          REASON: ${{ inputs.reason }}
+          AI_PROVIDER: ${{ inputs.ai_provider }}
           PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
           PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+          WORKFLOW: ${{ github.workflow }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
         run: |
           set -e
 
-          # If secrets not configured, skip silently
-          if [ -z "$PUSHOVER_APP_TOKEN" ] || [ -z "$PUSHOVER_USER_KEY" ]; then
-            echo "Pushover secrets missing. Skipping."
-            exit 0
-          fi
-
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          TITLE="❌ Workflow FAILED: ${{ github.workflow }}"
-          HEADER="Repo: ${{ github.repository }} | Branch: ${{ github.ref_name }} | Actor: ${{ github.actor }}"
-
           LOG="logs/backend-smoke.log"
-          TAIL=""
-          if [ -f "$LOG" ]; then
-            # Last 20 lines, compacted to avoid huge payload
-            TAIL="$(tail -n 20 "$LOG" | sed 's/[[:cntrl:]]//g' | tr '\n' ' ' | cut -c1-700)"
+          DEBUG_JSON="debug-ai.json"
+          RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}"
+
+          echo "❌ CI FAILURE — DIAGNOSTIC"
+          echo "Repo: $REPO"
+          echo "Run:  $RUN_URL"
+          echo ""
+
+          TITLE="CI failed: ${REPO}"
+          BODY=""
+
+          if curl -sSf "${BASE_URL}/api/debug/ai" > "${DEBUG_JSON}"; then
+            BODY="$(node - <<'NODE'
+            const d = require("./debug-ai.json");
+            const lines = [];
+            lines.push(`provider=${d.provider}`);
+            lines.push(`hasKey=${d.hasKey}`);
+            if (d.expectedEnvVar) lines.push(`expected=${d.expectedEnvVar}`);
+            if (d.openai?.model) lines.push(`model=${d.openai.model}`);
+            if (d.openai?.circuitBreaker?.state)
+              lines.push(`circuit=${d.openai.circuitBreaker.state}`);
+            console.log(lines.join("\n"));
+            NODE
+            )"
+          else
+            if [ -f "$LOG" ]; then
+              tail -n 120 "$LOG" > last.log || true
+              BODY="Smoke backend failed.\nSee logs.\nRun: ${RUN_URL}"
+            else
+              BODY="Smoke backend failed.\nNo logs available.\nRun: ${RUN_URL}"
+            fi
           fi
 
-          MSG="$HEADER | Reason: ${{ inputs.reason }} | $RUN_URL"
-          if [ -n "$TAIL" ]; then
-            MSG="$MSG | LogTail: $TAIL"
-          fi
+          BODY="${BODY}\n\nbranch=${REF_NAME}\nsha=${SHA}\nrun=${RUN_URL}"
 
-          curl -s \
-            --form-string "token=$PUSHOVER_APP_TOKEN" \
-            --form-string "user=$PUSHOVER_USER_KEY" \
-            --form-string "title=$TITLE" \
-            --form-string "message=$MSG" \
-            --form-string "url=$RUN_URL" \
-            --form-string "url_title=Open GitHub Run" \
-            https://api.pushover.net/1/messages.json
+          if [ -n "$PUSHOVER_APP_TOKEN" ] && [ -n "$PUSHOVER_USER_KEY" ]; then
+            curl -s \
+              --form-string "token=${PUSHOVER_APP_TOKEN}" \
+              --form-string "user=${PUSHOVER_USER_KEY}" \
+              --form-string "title=${TITLE}" \
+              --form-string "message=${BODY}" \
+              --form-string "url=${RUN_URL}" \
+              --form-string "url_title=Open CI run" \
+              https://api.pushover.net/1/messages.json
+          fi
