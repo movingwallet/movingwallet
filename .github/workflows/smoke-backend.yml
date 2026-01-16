@@ -102,6 +102,14 @@ jobs:
           curl -sSf "$BASE_URL/api/ping" | head -c 400
           echo
 
+      - name: "Smoke: GET /api/debug/ai (diagnostics)"
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -e
+          curl -sSf "$BASE_URL/api/debug/ai" | head -c 800
+          echo
+
       - name: "Upload smoke logs"
         if: always()
         uses: actions/upload-artifact@v4
