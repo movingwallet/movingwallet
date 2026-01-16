@@ -11,7 +11,15 @@ concurrency:
 
 jobs:
   smoke-backend:
-    name: "Smoke backend (reusable)"
+    name: "Smoke backend"
     uses: ./.github/workflows/smoke-backend.yml
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+  explain-failure:
+    name: "Explain failure"
+    needs: smoke-backend
+    if: needs.smoke-backend.outputs.smoke_status == 'failure'
+    uses: ./.github/workflows/explain-failure.yml
+    with:
+      reason: "Smoke backend failed"

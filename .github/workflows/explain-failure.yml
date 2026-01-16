@@ -1,0 +1,60 @@
+name: Explain Failure
+
+on:
+  workflow_call:
+    inputs:
+      reason:
+        description: "Failure reason hint"
+        required: false
+        type: string
+        default: "smoke-backend failed"
+
+jobs:
+  explain:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Download smoke logs"
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-smoke-logs
+          path: logs
+
+      - name: "Explain failure (human summary)"
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ CI FAILURE — HUMAN SUMMARY"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Context:"
+          echo "- Job: smoke-backend"
+          echo "- Reason: ${{ inputs.reason }}"
+          echo ""
+          echo "Most common causes:"
+          echo "1) Backend did not start"
+          echo "   - Port already in use"
+          echo "   - Crash at startup"
+          echo ""
+          echo "2) /health never became ready"
+          echo "   - Infinite boot"
+          echo "   - Missing env vars"
+          echo ""
+          echo "3) OpenAI issues (very common)"
+          echo "   - OPENAI_API_KEY missing"
+          echo "   - Invalid key"
+          echo "   - No credit / insufficient quota"
+          echo ""
+          echo "What to do next:"
+          echo "- Check artifact: backend-smoke.log"
+          echo "- If OpenAI error appears:"
+          echo "  → GitHub Settings → Secrets → Actions"
+          echo "  → Set OPENAI_API_KEY"
+          echo "  → Ensure the key has credit"
+          echo ""
+          echo "Last 80 lines of backend-smoke.log:"
+          echo "------------------------------------"
+          if [ -f logs/backend-smoke.log ]; then
+            tail -n 80 logs/backend-smoke.log || true
+          else
+            echo "(no log file found)"
+          fi

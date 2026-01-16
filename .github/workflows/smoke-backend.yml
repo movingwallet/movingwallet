@@ -11,10 +11,16 @@ on:
     secrets:
       OPENAI_API_KEY:
         required: false
+    outputs:
+      smoke_status:
+        description: "success or failure"
+        value: ${{ jobs.smoke-backend.outputs.smoke_status }}
 
 jobs:
   smoke-backend:
     runs-on: ubuntu-latest
+    outputs:
+      smoke_status: ${{ steps.set-status.outputs.status }}
 
     steps:
       - name: "Checkout"
@@ -58,7 +64,6 @@ jobs:
             sleep 1
           done
           echo "ERROR: /health did not become ready"
-          echo "—— backend-smoke.log (tail) ——"
           tail -n 200 backend-smoke.log || true
           exit 1
 
@@ -70,9 +75,26 @@ jobs:
           curl -sSf "$BASE_URL/api/ping" | head -c 400
           echo
 
+      - name: "Upload smoke logs"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-smoke-logs
+          path: backend-smoke.log
+
       - name: "Stop backend (always)"
         if: always()
         run: |
           if [ -f backend-smoke.pid ]; then
             kill -9 "$(cat backend-smoke.pid)" 2>/dev/null || true
+          fi
+
+      - name: "Set status"
+        if: always()
+        id: set-status
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
           fi
