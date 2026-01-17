@@ -5,43 +5,6 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 
-import type { Request, Response, NextFunction } from "express";
-
-import { connectToDatabase } from "./config/database";
-import { loadEnv } from "./config/schema.env";
-
-// Middlewares
-import authMiddleware from "./middleware/auth";
-import loggerMiddleware from "./middleware/logger";
-
-// Rutas
-import pingRoute from "./routes/ping";
-import githubRoute from "./routes/github";
-import googleDocRoute from "./routes/googleDoc";
-import { routerInteligenteRoute } from "./routes/gpt/routerInteligente";
-
-import crearEntradaDocRoute from "./routes/documentacion/crearEntrada";
-import githubCommitsRoute from "./routes/github/commits";
-import gptPromptRoute from "./routes/gpt/prompt";
-import gptGithubResumenRoute from "./routes/gpt/githubResumen";
-import estadoSistemaRoute from "./routes/resumen/estadoSistema";
-
-import logsVistaRoute from "./routes/logsVista";
-import logsJsonRoute from "./routes/logsJson";
-import estadoRoute from "./routes/estado";
-
-// Debug
-import openaiDebugRoute from "./routes/debug/openai";
-import diagnosticsRoute from "./routes/debug/diagnostics";
-import aiDebugRoute from "./routes/debug/ai";
-
-// Events
-import eventsRoute from "./routes/events";
-
-// GitHub write
-import githubIssuesRoute from "./routes/github/issues";
-import githubPrRoute from "./routes/github/pr";
-
 /* -------------------------------------------------- */
 /* Utils */
 /* -------------------------------------------------- */
@@ -92,87 +55,84 @@ function isServerlessRuntime() {
 
 export function createApp() {
   const envLoadedFrom = loadEnvMonorepoSafe();
-  const env = loadEnv();
 
-  const API_TOKENS = (env.API_TOKENS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const PORT = env.PORT || 3000;
+  const PORT = process.env.PORT || 3000;
 
   const app = express();
 
   app.locals.envLoadedFrom = envLoadedFrom;
-  app.locals.API_TOKENS_COUNT = API_TOKENS.length;
   app.locals.SERVERLESS = isServerlessRuntime();
 
   app.set("trust proxy", 1);
 
+  // Middlewares básicos
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));
 
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  // TraceId middleware
+  app.use((req: any, res: any, next: any) => {
     const traceId = crypto.randomUUID();
-    (req as any).traceId = traceId;
+    req.traceId = traceId;
     res.setHeader("x-trace-id", traceId);
     next();
   });
 
-  app.use(loggerMiddleware);
-
-  app.use(express.static(path.join(process.cwd(), "public")));
-
-  app.get("/health", (req: Request, res: Response) => {
-    res.json({ status: "ok", traceId: (req as any).traceId });
-  });
-
-  if (!isTestRun() && env.MONGO_URI) {
-    connectToDatabase().catch((err) => {
-      console.error("❌ MongoDB error:", err);
+  // Health endpoint (sin dependencias)
+  app.get("/health", (req: any, res: any) => {
+    res.json({ 
+      status: "ok", 
+      traceId: req.traceId,
+      serverless: isServerlessRuntime(),
+      timestamp: new Date().toISOString()
     });
-  }
-
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const p = req.path;
-    const ou = req.originalUrl;
-
-    if (
-      p === "/health" ||
-      p === "/ping" ||
-      p === "/api/ping" ||
-      ou.startsWith("/api/debug")
-    ) {
-      return next();
-    }
-
-    return authMiddleware(req, res, next);
   });
 
-  app.use("/api", pingRoute);
-  app.use("/api", githubRoute);
-  app.use("/api", googleDocRoute);
-  app.use("/api", routerInteligenteRoute);
-  app.use("/api", crearEntradaDocRoute);
-  app.use("/api", githubCommitsRoute);
-  app.use("/api", gptPromptRoute);
-  app.use("/api", gptGithubResumenRoute);
-  app.use("/api", estadoSistemaRoute);
-  app.use("/api", logsVistaRoute);
-  app.use("/api", logsJsonRoute);
-  app.use("/api", estadoRoute);
-  app.use("/api", openaiDebugRoute);
-  app.use("/api", diagnosticsRoute);
-  app.use("/api", aiDebugRoute);
-  app.use("/api", eventsRoute);
-  app.use("/api", githubIssuesRoute);
-  app.use("/api", githubPrRoute);
+  // Ping endpoint
+  app.post("/api/ping", (req: any, res: any) => {
+    res.json({ 
+      message: "pong", 
+      traceId: req.traceId,
+      timestamp: new Date().toISOString()
+    });
+  });
 
-  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
-    const traceId = (req as any).traceId;
+  // Debug AI endpoint
+  app.post("/api/debug/ai", (req: any, res: any) => {
+    const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+    const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+    const hasGitHub = Boolean(process.env.GITHUB_TOKEN);
+
+    res.json({
+      traceId: req.traceId,
+      env: {
+        OPENAI_API_KEY: hasOpenAI ? "✅ Present" : "❌ Missing",
+        ANTHROPIC_API_KEY: hasAnthropic ? "✅ Present" : "❌ Missing",
+        GITHUB_TOKEN: hasGitHub ? "✅ Present" : "❌ Missing",
+      },
+      serverless: isServerlessRuntime(),
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // 404 handler
+  app.use((req: any, res: any) => {
+    res.status(404).json({ 
+      error: "Not Found", 
+      path: req.path,
+      traceId: req.traceId 
+    });
+  });
+
+  // Error handler
+  app.use((err: any, req: any, res: any, next: any) => {
+    const traceId = req.traceId;
     console.error("❌ Global error:", err);
-    res.status(500).json({ error: "Internal Server Error", traceId });
+    res.status(500).json({ 
+      error: "Internal Server Error", 
+      traceId,
+      message: err.message
+    });
   });
 
   return { app, PORT };
@@ -188,6 +148,7 @@ export default function handler(req: any, res: any) {
   return app(req, res);
 }
 
+// Solo listen en local
 if (!isServerlessRuntime() && !isTestRun()) {
   app.listen(PORT, () => {
     console.log(`✅ GPT-backend running on http://localhost:${PORT}`);

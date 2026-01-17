@@ -2,20 +2,19 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-
-    "module": "CommonJS",
-    "moduleResolution": "Node",
-
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
-
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-
     "types": ["node"],
-
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]

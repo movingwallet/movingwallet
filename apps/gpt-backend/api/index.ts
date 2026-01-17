@@ -1,5 +1,5 @@
 // apps/gpt-backend/api/index.ts
-import handler from "../server";
+import handler from "../server.js";
 
 /**
  * ✅ Entrada para Vercel Serverless Function
