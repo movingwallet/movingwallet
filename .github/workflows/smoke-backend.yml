@@ -52,9 +52,6 @@ jobs:
       - name: "Install deps"
         run: pnpm install --frozen-lockfile
 
-      - name: "Unit tests"
-        run: pnpm test
-
       - name: "Resolve AI provider"
         id: ai-provider
         env:
@@ -102,20 +99,25 @@ jobs:
           curl -sSf "$BASE_URL/api/ping" | head -c 400
           echo
 
-      - name: "Smoke: GET /api/debug/ai (diagnostics)"
+      - name: "Smoke: Capture /api/debug/ai -> debug-ai.json (artifact)"
         env:
           BASE_URL: ${{ inputs.base_url }}
         run: |
           set -e
-          curl -sSf "$BASE_URL/api/debug/ai" | head -c 800
+          curl -sSf "$BASE_URL/api/debug/ai" > debug-ai.json
+          head -c 900 debug-ai.json || true
           echo
 
-      - name: "Upload smoke logs"
+      - name: "Upload smoke artifacts"
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-smoke-logs
-          path: backend-smoke.log
+          path: |
+            backend-smoke.log
+            debug-ai.json
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: "Stop backend (always)"
         if: always()

@@ -1,15 +1,25 @@
-name: Run Tests
+name: Tests
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+  workflow_call:
+    secrets:
+      PUSHOVER_APP_TOKEN:
+        required: false
+      PUSHOVER_USER_KEY:
+        required: false
+    outputs:
+      test_status:
+        description: "success or failure"
+        value: ${{ jobs.test.outputs.test_status }}
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    outputs:
+      test_status: ${{ steps.set-status.outputs.status }}
 
     env:
       TURBO_TELEMETRY_DISABLED: "1"
@@ -38,12 +48,20 @@ jobs:
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Guardamos logs de test en archivo para subirlo si falla
       - name: 🧪 Run tests (turbo)
         run: |
           pnpm test 2>&1 | tee test-output.log
 
-      # Subimos artifacts SOLO si falla
+      - name: "Set status"
+        if: always()
+        id: set-status
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📦 Upload test artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -57,15 +75,16 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: 🚨 Send Pushover notification on failure
-        if: failure()
-        env:
-          PUSHOVER_API_TOKEN: ${{ secrets.PUSHOVER_API_TOKEN }}
-          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
-        run: |
-          curl -s \
-            --form-string "token=${PUSHOVER_API_TOKEN}" \
-            --form-string "user=${PUSHOVER_USER_KEY}" \
-            --form-string "title=🚨 Tests Failed" \
-            --form-string "message=El workflow de tests ha fallado en ${{ github.repository }} 🚨\nBranch: ${{ github.ref_name }}\nAutor: ${{ github.actor }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            https://api.pushover.net/1/messages.json
+  notify-failure:
+    name: "Notify (Pushover)"
+    needs: test
+    if: needs.test.outputs.test_status == 'failure'
+    uses: ./.github/workflows/_pushover-notify.yml
+    with:
+      title: "🚨 Tests Failed: ${{ github.repository }}"
+      message: "Tests failed.\nbranch=${{ github.ref_name }}\nactor=${{ github.actor }}\nrun=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      url_title: "Open CI run"
+    secrets:
+      PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+      PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}

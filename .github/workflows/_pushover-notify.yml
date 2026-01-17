@@ -1,6 +1,4 @@
-
-
-name: Pushover Notify (reusable)
+name: Pushover Notify
 
 on:
   workflow_call:
@@ -28,22 +26,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Pushover notification
+        env:
+          PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          TITLE: ${{ inputs.title }}
+          MESSAGE: ${{ inputs.message }}
+          URL: ${{ inputs.url }}
+          URL_TITLE: ${{ inputs.url_title }}
         run: |
-          TITLE="${{ inputs.title }}"
-          MSG="${{ inputs.message }}"
-          URL="${{ inputs.url }}"
-          URL_TITLE="${{ inputs.url_title }}"
+          set -e
 
-          if [ -z "${{ secrets.PUSHOVER_APP_TOKEN }}" ] || [ -z "${{ secrets.PUSHOVER_USER_KEY }}" ]; then
-            echo "Pushover secrets not set. Skipping."
-            exit 0
+          FORM_ARGS=(
+            --form-string "token=$PUSHOVER_APP_TOKEN"
+            --form-string "user=$PUSHOVER_USER_KEY"
+            --form-string "title=$TITLE"
+            --form-string "message=$MESSAGE"
+          )
+
+          if [ -n "${URL:-}" ]; then
+            FORM_ARGS+=( --form-string "url=$URL" )
           fi
 
-          curl -s \
-            --form-string "token=${{ secrets.PUSHOVER_APP_TOKEN }}" \
-            --form-string "user=${{ secrets.PUSHOVER_USER_KEY }}" \
-            --form-string "title=${TITLE}" \
-            --form-string "message=${MSG}" \
-            ${URL:+--form-string "url=${URL}"} \
-            ${URL_TITLE:+--form-string "url_title=${URL_TITLE}"} \
-            https://api.pushover.net/1/messages.json
+          if [ -n "${URL_TITLE:-}" ]; then
+            FORM_ARGS+=( --form-string "url_title=$URL_TITLE" )
+          fi
+
+          curl -s "${FORM_ARGS[@]}" https://api.pushover.net/1/messages.json
+          echo

@@ -9,7 +9,9 @@ export type EventKind =
   | "repo_plan"
   | "repo_change"
   | "deploy_event"
-  | "note";
+  | "note"
+  | "blocked_action"
+  | "error";
 
 export type EventRecord = {
   id: string;

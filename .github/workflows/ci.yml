@@ -2,23 +2,25 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "dev"]
   pull_request:
+    branches: ["main", "dev"]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  tests:
+    name: "Tests"
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
   smoke-backend:
     name: "Smoke backend"
+    needs: tests
     uses: ./.github/workflows/smoke-backend.yml
-    secrets:
-      AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+    secrets: inherit
 
   explain-failure:
     name: "Explain failure"
@@ -28,6 +30,4 @@ jobs:
     with:
       reason: "Smoke backend failed"
       ai_provider: ${{ needs.smoke-backend.outputs.ai_provider }}
-    secrets:
-      PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
-      PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+    secrets: inherit

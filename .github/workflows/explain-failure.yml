@@ -7,10 +7,6 @@ on:
         required: false
         type: string
         default: "smoke-backend failed"
-      base_url:
-        required: false
-        type: string
-        default: "http://127.0.0.1:3000"
       ai_provider:
         required: false
         type: string
@@ -26,16 +22,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: "Download smoke logs (if present)"
+      - name: "Download smoke artifacts (if present)"
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: backend-smoke-logs
           path: logs
 
-      - name: "Explain failure + send Pushover (only on failures)"
+      - name: "Build message from artifacts + send Pushover"
         env:
-          BASE_URL: ${{ inputs.base_url }}
           REASON: ${{ inputs.reason }}
           AI_PROVIDER: ${{ inputs.ai_provider }}
           PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
@@ -43,47 +38,43 @@ jobs:
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
           SERVER_URL: ${{ github.server_url }}
-          WORKFLOW: ${{ github.workflow }}
           REF_NAME: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
         run: |
           set -e
 
-          LOG="logs/backend-smoke.log"
-          DEBUG_JSON="debug-ai.json"
           RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}"
-
-          echo "❌ CI FAILURE — DIAGNOSTIC"
-          echo "Repo: $REPO"
-          echo "Run:  $RUN_URL"
-          echo ""
-
           TITLE="CI failed: ${REPO}"
           BODY=""
 
-          if curl -sSf "${BASE_URL}/api/debug/ai" > "${DEBUG_JSON}"; then
+          DEBUG_JSON="logs/debug-ai.json"
+          LOG_FILE="logs/backend-smoke.log"
+
+          if [ -f "$DEBUG_JSON" ]; then
             BODY="$(node - <<'NODE'
-            const d = require("./debug-ai.json");
+            const fs = require("fs");
+            const d = JSON.parse(fs.readFileSync("logs/debug-ai.json","utf-8"));
             const lines = [];
-            lines.push(`provider=${d.provider}`);
-            lines.push(`hasKey=${d.hasKey}`);
+            if (d.provider) lines.push(`provider=${d.provider}`);
+            if (typeof d.hasKey !== "undefined") lines.push(`hasKey=${d.hasKey}`);
             if (d.expectedEnvVar) lines.push(`expected=${d.expectedEnvVar}`);
             if (d.openai?.model) lines.push(`model=${d.openai.model}`);
-            if (d.openai?.circuitBreaker?.state)
-              lines.push(`circuit=${d.openai.circuitBreaker.state}`);
-            console.log(lines.join("\n"));
+            if (d.openai?.circuitBreaker?.state) lines.push(`circuit=${d.openai.circuitBreaker.state}`);
+            console.log(lines.join("\n") || "debug-ai.json present but no fields recognized");
             NODE
             )"
+          elif [ -f "$LOG_FILE" ]; then
+            tail -n 120 "$LOG_FILE" > last.log || true
+            BODY="Smoke backend failed.\n(Showing last 120 lines)\n\n$(cat last.log)"
           else
-            if [ -f "$LOG" ]; then
-              tail -n 120 "$LOG" > last.log || true
-              BODY="Smoke backend failed.\nSee logs.\nRun: ${RUN_URL}"
-            else
-              BODY="Smoke backend failed.\nNo logs available.\nRun: ${RUN_URL}"
-            fi
+            BODY="Smoke backend failed.\nNo artifacts available."
           fi
 
-          BODY="${BODY}\n\nbranch=${REF_NAME}\nsha=${SHA}\nrun=${RUN_URL}"
+          BODY="${BODY}\n\nreason=${REASON}\nai_provider=${AI_PROVIDER}\nbranch=${REF_NAME}\nsha=${SHA}\nrun=${RUN_URL}"
+
+          echo "---- MESSAGE ----"
+          echo "$BODY"
+          echo "-----------------"
 
           if [ -n "$PUSHOVER_APP_TOKEN" ] && [ -n "$PUSHOVER_USER_KEY" ]; then
             curl -s \
@@ -94,4 +85,6 @@ jobs:
               --form-string "url=${RUN_URL}" \
               --form-string "url_title=Open CI run" \
               https://api.pushover.net/1/messages.json
+          else
+            echo "Pushover secrets not set. Skipping notification."
           fi

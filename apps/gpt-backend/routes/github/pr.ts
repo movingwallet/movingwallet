@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getEventStore } from "../../lib/eventStore";
 import { createBranch, commitFile, createPullRequest } from "../../lib/githubClient";
+import { assertCan, getControlMode } from "../../lib/controlMode";
 
 const router = Router();
 
@@ -24,6 +25,34 @@ const router = Router();
  */
 router.post("/github/pr", async (req: Request, res: Response) => {
   const store = getEventStore();
+
+  // ✅ Control-mode guard (seguridad por defecto)
+  try {
+    assertCan("github_pr");
+  } catch (err: any) {
+    const mode = getControlMode();
+
+    // Audit event: intento bloqueado
+    store.create({
+      kind: "blocked_action",
+      source: "backend",
+      severity: "warn",
+      tags: ["github", "pr", "control_mode"],
+      data: {
+        action: "create_pr",
+        controlMode: mode,
+        path: "/api/github/pr",
+        reason: err?.message || "blocked",
+      },
+    });
+
+    return res.status(403).json({
+      error: "Forbidden",
+      code: err?.code || "control_mode_blocked",
+      details: err?.message || `Action blocked by CONTROL_MODE="${mode}"`,
+      controlMode: mode,
+    });
+  }
 
   const finalOwner = (req.body?.owner || process.env.GITHUB_OWNER || "").trim();
   const finalRepo = (req.body?.repo || process.env.GITHUB_REPO || "").trim();
@@ -73,9 +102,10 @@ router.post("/github/pr", async (req: Request, res: Response) => {
       if (typeof c.content !== "string") {
         return res.status(400).json({ error: "Bad Request", details: "Each commit must include content (string)." });
       }
-      const msg = (typeof c.message === "string" && c.message.trim())
-        ? c.message.trim()
-        : `chore: update ${c.path}`;
+      const msg =
+        typeof c.message === "string" && c.message.trim()
+          ? c.message.trim()
+          : `chore: update ${c.path}`;
 
       const r = await commitFile({
         owner: finalOwner,
@@ -114,22 +144,45 @@ router.post("/github/pr", async (req: Request, res: Response) => {
         prNumber: pr.number,
         prUrl: pr.html_url,
         files: results.map((x) => x.contentPath),
+        controlMode: getControlMode(),
       },
     });
 
     return res.status(201).json({
       status: "ok",
+      controlMode: getControlMode(),
       branch: br,
       commits: results,
       pr,
     });
   } catch (err: any) {
     const status = err?.status || 500;
+
+    // Audit event: error real
+    store.create({
+      kind: "error",
+      source: "backend",
+      severity: "error",
+      tags: ["github", "pr"],
+      data: {
+        action: "create_pr",
+        owner: finalOwner,
+        repo: finalRepo,
+        base,
+        branch,
+        controlMode: getControlMode(),
+        error: err?.message || String(err),
+        githubStatus: err?.githubStatus,
+        code: err?.code,
+      },
+    });
+
     return res.status(status).json({
       error: "GitHub PR creation failed",
       details: err?.message || String(err),
       code: err?.code,
       githubStatus: err?.githubStatus,
+      controlMode: getControlMode(),
     });
   }
 });
