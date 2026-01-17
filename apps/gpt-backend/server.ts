@@ -85,7 +85,7 @@ function isTestRun() {
 }
 
 /**
- * ✅ Detecta ejecución en Vercel / serverless
+ * ✅ Detecta runtime serverless (Vercel/Lambda)
  * En serverless NO debemos hacer app.listen()
  */
 function isServerlessRuntime() {
@@ -150,6 +150,7 @@ export function createApp() {
 
   /**
    * ✅ Mongo (opcional)
+   * Importante: en serverless NO hacemos process.exit(1)
    */
   if (!isTestRun()) {
     if (env.MONGO_URI) {
@@ -157,7 +158,6 @@ export function createApp() {
         const message = err instanceof Error ? err.message : String(err);
         console.error("❌ Error MongoDB:", message);
 
-        // En serverless no hagas process.exit(1) (puede marcar crash)
         if (!isServerlessRuntime()) {
           process.exit(1);
         }
@@ -250,7 +250,7 @@ export function createApp() {
   return { app, PORT, API_TOKENS };
 }
 
-// Export default app (Vercel usa el handler de Express sin escuchar puerto)
+// Export default app (Vercel puede usar Express app como handler)
 const { app, PORT, API_TOKENS } = createApp();
 export default app;
 
