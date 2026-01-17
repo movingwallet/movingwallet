@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import serverless from "serverless-http";
 
 import { connectToDatabase } from "./config/database";
 import { loadEnv } from "./config/schema.env";
@@ -254,12 +255,10 @@ export function createApp() {
 const { app, PORT, API_TOKENS } = createApp();
 
 /**
- * ✅ Vercel (@vercel/node) espera un handler (req,res),
- * no un "app" exportado directamente.
+ * ✅ Handler serverless correcto (Vercel/Lambda)
+ * Express se envuelve con serverless-http
  */
-export default function handler(req: any, res: any) {
-  return app(req, res);
-}
+export const handler = serverless(app);
 
 // ✅ Arrancar servidor SOLO si estamos en local (NO serverless, NO tests)
 if (!isTestRun() && !isServerlessRuntime()) {
@@ -268,4 +267,3 @@ if (!isTestRun() && !isServerlessRuntime()) {
     console.log(`🔑 Tokens API permitidos: ${API_TOKENS.length}`);
   });
 }
-
