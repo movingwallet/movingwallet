@@ -17,15 +17,15 @@ on:
         type: string
     secrets:
       PUSHOVER_APP_TOKEN:
-        required: true
+        required: false
       PUSHOVER_USER_KEY:
-        required: true
+        required: false
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Pushover notification
+      - name: Send Pushover notification (skip if not configured)
         env:
           PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
           PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
@@ -35,6 +35,11 @@ jobs:
           URL_TITLE: ${{ inputs.url_title }}
         run: |
           set -e
+
+          if [ -z "${PUSHOVER_APP_TOKEN:-}" ] || [ -z "${PUSHOVER_USER_KEY:-}" ]; then
+            echo "Pushover not configured (missing secrets). Skipping."
+            exit 0
+          fi
 
           FORM_ARGS=(
             --form-string "token=$PUSHOVER_APP_TOKEN"
