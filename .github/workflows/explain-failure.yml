@@ -11,10 +11,19 @@ on:
         required: false
         type: string
         default: "openai"
+      ai_explain_url:
+        required: false
+        type: string
+        default: ""
     secrets:
       PUSHOVER_APP_TOKEN:
         required: false
       PUSHOVER_USER_KEY:
+        required: false
+      # opcional: para pedir resumen IA (si lo usas)
+      OPENAI_API_KEY:
+        required: false
+      API_TOKENS:
         required: false
 
 jobs:
@@ -38,9 +47,72 @@ jobs:
           node .github/scripts/classify-smoke-failure.mjs logs > classification.json
           cat classification.json
 
-      - name: 🧾 Build message files (title/body)
+      - name: 🧾 Build base message files (title/body)
         run: |
-          node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('classification.json','utf-8')); const title=\`[\${c.code}] \${c.title}\`; const steps=(c.nextSteps||[]).map(s=>'• '+s).join('\n'); const body=(\`\${c.summary}\n\nprovider=\${c.provider}\nexpectedEnv=\${c.expectedEnv}\nhasKey=\${c.hasKey}\n\nNext steps:\n\${steps}\n\nrepo=${{ github.repository }}\nbranch=${{ github.ref_name }}\nsha=${{ github.sha }}\nrun=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\`).trim(); fs.writeFileSync('pushover_title.txt',title); fs.writeFileSync('pushover_body.txt',body); console.log('TITLE:\\n'+title+'\\n'); console.log('BODY:\\n'+body);"
+          node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('classification.json','utf-8')); const title=\`[\${c.code}] \${c.title}\`; const steps=(c.nextSteps||[]).map(s=>'• '+s).join('\n'); const body=(\`\${c.summary}\n\nprovider=\${c.provider}\nexpectedEnv=\${c.expectedEnv}\nhasKey=\${c.hasKey}\n\nNext steps:\n\${steps}\n\nrepo=${{ github.repository }}\nbranch=${{ github.ref_name }}\nsha=${{ github.sha }}\nrun=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\`).trim(); fs.writeFileSync('pushover_title.txt',title); fs.writeFileSync('pushover_body.txt',body);"
+
+      - name: 🤖 Optional AI explanation (only if UNKNOWN)
+        env:
+          AI_EXPLAIN_URL: ${{ inputs.ai_explain_url }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          API_TOKENS: ${{ secrets.API_TOKENS }}
+        run: |
+          set -e
+
+          CODE="$(node -e "console.log(JSON.parse(require('fs').readFileSync('classification.json','utf-8')).code)")"
+          if [ "$CODE" != "UNKNOWN" ]; then
+            echo "Not UNKNOWN ($CODE) -> skip AI explanation"
+            exit 0
+          fi
+
+          if [ -z "$AI_EXPLAIN_URL" ]; then
+            echo "AI_EXPLAIN_URL not set -> skip AI explanation"
+            exit 0
+          fi
+
+          if [ -z "$API_TOKENS" ]; then
+            echo "API_TOKENS not set -> skip AI explanation"
+            exit 0
+          fi
+
+          # Construimos prompt corto con los últimos logs
+          LOG_FILE="logs/backend-smoke.log"
+          if [ ! -f "$LOG_FILE" ]; then
+            echo "No backend-smoke.log -> skip"
+            exit 0
+          fi
+
+          TAIL_LOG="$(tail -n 120 "$LOG_FILE" | sed 's/"/\\"/g')"
+
+          PROMPT="Resume el fallo del smoke CI en 5-8 líneas y di 3 acciones concretas. Logs (últimas 120 líneas):\n\n$TAIL_LOG"
+
+          echo "{\"prompt\":\"$PROMPT\"}" > ai_payload.json
+
+          # Llamada al endpoint (debe aceptar Authorization: Bearer <token>)
+          set +e
+          curl -sS -X POST "$AI_EXPLAIN_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${API_TOKENS}" \
+            -d @ai_payload.json > ai_response.json
+          RC=$?
+          set -e
+
+          if [ "$RC" -ne 0 ]; then
+            echo "AI explain call failed -> continue"
+            exit 0
+          fi
+
+          # Extraemos texto esperado en .answer o .response o .message (según backend)
+          AI_TEXT="$(node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('ai_response.json','utf-8')); console.log(r.answer||r.response||r.message||r.text||'')")"
+
+          if [ -z "$AI_TEXT" ]; then
+            echo "AI response empty -> continue"
+            exit 0
+          fi
+
+          # Inyectamos al body existente como bloque al final
+          BODY="$(cat pushover_body.txt)"
+          printf "%s\n\nAI summary:\n%s\n" "$BODY" "$AI_TEXT" > pushover_body.txt
 
       - name: 🚨 Send Pushover notification (if configured)
         env:
