@@ -61,7 +61,8 @@ jobs:
   notify:
     name: "Notify (Pushover)"
     needs: security-triage
-    if: needs.security-triage.outputs.has_issues == 'true'
+    # ✅ Solo notificar en schedule/manual, nunca en PR
+    if: needs.security-triage.outputs.has_issues == 'true' && github.event_name != 'pull_request'
     uses: ./.github/workflows/_pushover-notify.yml
     with:
       title: "🔐 Security audit warnings"
