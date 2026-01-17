@@ -31,5 +31,5 @@ jobs:
       reason: "Smoke backend failed"
       ai_provider: ${{ needs.smoke-backend.outputs.ai_provider }}
       # URL PUBLICA del backend en Vercel (sin / al final)
-      ai_explain_url: ${{ vars.GPT_BACKEND_PUBLIC_URL }}/api/gpt/prompt
+      ai_explain_url: ${{ vars.GPT_BACKEND_PUBLIC_URL && format('{0}/api/gpt/prompt', vars.GPT_BACKEND_PUBLIC_URL) || '' }}
     secrets: inherit
