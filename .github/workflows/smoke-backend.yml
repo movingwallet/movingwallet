@@ -8,6 +8,16 @@ on:
         required: false
         type: string
         default: "http://127.0.0.1:3000"
+      retries:
+        description: "How many total attempts (default 2)"
+        required: false
+        type: number
+        default: 2
+      health_timeout_seconds:
+        description: "Seconds to wait for /health per attempt (default 60)"
+        required: false
+        type: number
+        default: 60
     secrets:
       AI_PROVIDER:
         required: false
@@ -63,8 +73,11 @@ jobs:
             echo "provider=openai" >> $GITHUB_OUTPUT
           fi
 
-      - name: "Start backend (smoke)"
+      - name: "Smoke (with retry)"
         env:
+          BASE_URL: ${{ inputs.base_url }}
+          RETRIES: ${{ inputs.retries }}
+          HEALTH_TIMEOUT: ${{ inputs.health_timeout_seconds }}
           AI_PROVIDER: ${{ steps.ai-provider.outputs.provider }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -72,41 +85,91 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
           set -e
-          pnpm --filter gpt-backend dev > backend-smoke.log 2>&1 &
-          echo $! > backend-smoke.pid
 
-      - name: "Wait for /health"
-        env:
-          BASE_URL: ${{ inputs.base_url }}
-        run: |
-          set -e
-          for i in {1..60}; do
-            if curl -sSf "$BASE_URL/health" > /dev/null; then
-              echo "OK: /health ready"
+          mkdir -p logs
+          : > logs/debug-ai.json || true
+
+          stop_backend() {
+            if [ -f logs/backend-smoke.pid ]; then
+              kill -9 "$(cat logs/backend-smoke.pid)" 2>/dev/null || true
+              rm -f logs/backend-smoke.pid || true
+            fi
+          }
+
+          wait_health() {
+            local timeout="$1"
+            local ok="0"
+            for i in $(seq 1 "$timeout"); do
+              if curl -sSf "$BASE_URL/health" > /dev/null; then
+                ok="1"
+                break
+              fi
+              sleep 1
+            done
+            if [ "$ok" = "1" ]; then
+              return 0
+            fi
+            return 1
+          }
+
+          attempt=1
+          total="$RETRIES"
+
+          while [ "$attempt" -le "$total" ]; do
+            echo "===== SMOKE ATTEMPT $attempt/$total ====="
+
+            stop_backend
+
+            LOG_FILE="logs/backend-smoke-attempt-${attempt}.log"
+            : > "$LOG_FILE"
+
+            # Start backend
+            pnpm --filter gpt-backend dev > "$LOG_FILE" 2>&1 &
+            echo $! > logs/backend-smoke.pid
+
+            # Wait for /health
+            if ! wait_health "$HEALTH_TIMEOUT"; then
+              echo "ERROR: /health did not become ready (attempt $attempt)" | tee -a "$LOG_FILE"
+              tail -n 200 "$LOG_FILE" || true
+              stop_backend
+              attempt=$((attempt+1))
+              sleep 3
+              continue
+            fi
+
+            # Smoke endpoints
+            set +e
+            curl -sSf "$BASE_URL/api/ping" | head -c 400 > /dev/null
+            PING_RC=$?
+
+            curl -sSf "$BASE_URL/api/debug/ai" > logs/debug-ai.json
+            AI_RC=$?
+            set -e
+
+            if [ "$PING_RC" -eq 0 ] && [ "$AI_RC" -eq 0 ]; then
+              echo "OK: Smoke passed on attempt $attempt"
+              # Canonical log for downstream explain-failure
+              cp "$LOG_FILE" logs/backend-smoke.log
+              stop_backend
               exit 0
             fi
-            sleep 1
+
+            echo "ERROR: Smoke endpoints failed (attempt $attempt) ping_rc=$PING_RC ai_rc=$AI_RC" | tee -a "$LOG_FILE"
+            tail -n 200 "$LOG_FILE" || true
+            stop_backend
+
+            attempt=$((attempt+1))
+            sleep 3
           done
-          echo "ERROR: /health did not become ready"
-          tail -n 200 backend-smoke.log || true
+
+          echo "FAILED: All smoke attempts exhausted ($total)"
+          # Keep last attempt as canonical
+          if [ -f "logs/backend-smoke-attempt-${total}.log" ]; then
+            cp "logs/backend-smoke-attempt-${total}.log" logs/backend-smoke.log
+          else
+            echo "No logs found" > logs/backend-smoke.log
+          fi
           exit 1
-
-      - name: "Smoke: GET /api/ping"
-        env:
-          BASE_URL: ${{ inputs.base_url }}
-        run: |
-          set -e
-          curl -sSf "$BASE_URL/api/ping" | head -c 400
-          echo
-
-      - name: "Smoke: Capture /api/debug/ai -> debug-ai.json (artifact)"
-        env:
-          BASE_URL: ${{ inputs.base_url }}
-        run: |
-          set -e
-          curl -sSf "$BASE_URL/api/debug/ai" > debug-ai.json
-          head -c 900 debug-ai.json || true
-          echo
 
       - name: "Upload smoke artifacts"
         if: always()
@@ -114,17 +177,11 @@ jobs:
         with:
           name: backend-smoke-logs
           path: |
-            backend-smoke.log
-            debug-ai.json
+            logs/backend-smoke.log
+            logs/backend-smoke-attempt-*.log
+            logs/debug-ai.json
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: "Stop backend (always)"
-        if: always()
-        run: |
-          if [ -f backend-smoke.pid ]; then
-            kill -9 "$(cat backend-smoke.pid)" 2>/dev/null || true
-          fi
 
       - name: "Set status"
         if: always()
