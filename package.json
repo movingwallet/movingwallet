@@ -6,20 +6,11 @@
     "apps/*"
   ],
   "scripts": {
+    "test": "turbo run test",
     "build": "turbo run build",
-    "dev": "turbo run dev",
-    "test": "turbo run test"
+    "dev": "turbo run dev"
   },
-  "dependencies": {
-    "@googleapis/docs": "^4.0.2",
-    "@pinecone-database/pinecone": "^4.1.0",
-    "dotenv": "^16.4.5",
-    "jsdom": "^26.0.0",
-    "mongodb": "^6.13.0",
-    "openai": "^4.85.3",
-    "simple-git": "^3.27.0",
-    "zod": "^3.23.8"
-  },
+  "dependencies": {},
   "devDependencies": {
     "turbo": "^2.5.0",
     "typescript": "^5.8.3"

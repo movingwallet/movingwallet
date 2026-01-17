@@ -1,10 +1,9 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import serverless from "serverless-http";
 
 import { connectToDatabase } from "./config/database";
 import { loadEnv } from "./config/schema.env";
@@ -125,17 +124,16 @@ export function createApp() {
 
   /**
    * ✅ TraceId global
-   * (tipos "any" para evitar conflictos de typings en Vercel)
    */
-  app.use((req: any, res: any, next: any) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const traceId = crypto.randomUUID();
-    req.traceId = traceId;
+    (req as any).traceId = traceId;
     res.setHeader("x-trace-id", traceId);
     next();
   });
 
   // Logger
-  app.use(loggerMiddleware as any);
+  app.use(loggerMiddleware);
 
   // Static
   app.use(express.static(path.join(process.cwd(), "public")));
@@ -143,10 +141,10 @@ export function createApp() {
   /**
    * ✅ Health (sin auth)
    */
-  app.get("/health", (req: any, res: any) => {
+  app.get("/health", (req: Request, res: Response) => {
     res.json({
       status: "ok",
-      traceId: req.traceId,
+      traceId: (req as any).traceId,
     });
   });
 
@@ -172,7 +170,7 @@ export function createApp() {
   /**
    * ✅ Auth bypass
    */
-  app.use((req: any, res: any, next: any) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const p = req.path;
     const ou = req.originalUrl;
 
@@ -191,43 +189,43 @@ export function createApp() {
       return next();
     }
 
-    return (authMiddleware as any)(req, res, next);
+    return authMiddleware(req, res, next);
   });
 
   // Routes
-  app.use("/api", pingRoute as any);
-  app.use("/api", githubRoute as any);
-  app.use("/api", googleDocRoute as any);
-  app.use("/api", routerInteligenteRoute as any);
+  app.use("/api", pingRoute);
+  app.use("/api", githubRoute);
+  app.use("/api", googleDocRoute);
+  app.use("/api", routerInteligenteRoute);
 
-  app.use("/api", crearEntradaDocRoute as any);
-  app.use("/api", githubCommitsRoute as any);
+  app.use("/api", crearEntradaDocRoute);
+  app.use("/api", githubCommitsRoute);
 
-  app.use("/api", gptPromptRoute as any);
-  app.use("/api", gptGithubResumenRoute as any);
-  app.use("/api", estadoSistemaRoute as any);
+  app.use("/api", gptPromptRoute);
+  app.use("/api", gptGithubResumenRoute);
+  app.use("/api", estadoSistemaRoute);
 
-  app.use("/api", logsVistaRoute as any);
-  app.use("/api", logsJsonRoute as any);
-  app.use("/api", estadoRoute as any);
+  app.use("/api", logsVistaRoute);
+  app.use("/api", logsJsonRoute);
+  app.use("/api", estadoRoute);
 
   // Debug
-  app.use("/api", openaiDebugRoute as any);
-  app.use("/api", diagnosticsRoute as any);
-  app.use("/api", aiDebugRoute as any);
+  app.use("/api", openaiDebugRoute);
+  app.use("/api", diagnosticsRoute);
+  app.use("/api", aiDebugRoute);
 
   // Events
-  app.use("/api", eventsRoute as any);
+  app.use("/api", eventsRoute);
 
   // GitHub write
-  app.use("/api", githubIssuesRoute as any);
-  app.use("/api", githubPrRoute as any);
+  app.use("/api", githubIssuesRoute);
+  app.use("/api", githubPrRoute);
 
   /**
    * ✅ Error handler global (con traceId)
    */
-  app.use((err: unknown, req: any, res: any, _next: any) => {
-    const traceId = req?.traceId;
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    const traceId = (req as any).traceId;
 
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
@@ -256,11 +254,12 @@ export function createApp() {
 const { app, PORT, API_TOKENS } = createApp();
 
 /**
- * ✅ Handler serverless correcto (Vercel/Lambda)
- * Express se envuelve con serverless-http
+ * ✅ Vercel (@vercel/node) espera (req, res).
+ * Exportamos un handler por defecto.
  */
-export const handler = serverless(app);
-export default handler;
+export default function handler(req: any, res: any) {
+  return app(req, res);
+}
 
 // ✅ Arrancar servidor SOLO si estamos en local (NO serverless, NO tests)
 if (!isTestRun() && !isServerlessRuntime()) {
