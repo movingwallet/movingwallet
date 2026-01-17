@@ -1,15 +1,21 @@
 {
-    "builds": [
-      {
-        "src": "apps/gpt-backend/server.ts",
-        "use": "@vercel/node"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "apps/gpt-backend/server.ts"
-      }
-    ]
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/gpt-backend/api/index.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "apps/gpt-backend/api/index.ts"
+    }
+  ],
+  "functions": {
+    "apps/gpt-backend/api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
   }
-  
+}
