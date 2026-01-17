@@ -2,21 +2,19 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+
+    "module": "CommonJS",
+    "moduleResolution": "Node",
 
     "rootDir": ".",
     "outDir": "dist",
 
     "strict": true,
     "skipLibCheck": true,
-    "noImplicitAny": true,
 
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-
-    "types": ["node"],
 
     "baseUrl": ".",
     "paths": {
