@@ -84,6 +84,19 @@ function isTestRun() {
   );
 }
 
+/**
+ * ✅ Detecta ejecución en Vercel / serverless
+ * En serverless NO debemos hacer app.listen()
+ */
+function isServerlessRuntime() {
+  return (
+    process.env.VERCEL === "1" ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME != null ||
+    process.env.LAMBDA_TASK_ROOT != null ||
+    process.env.NOW_REGION != null
+  );
+}
+
 export function createApp() {
   const loadedEnvPaths = loadEnvMonorepoSafe();
 
@@ -143,7 +156,11 @@ export function createApp() {
       connectToDatabase().catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
         console.error("❌ Error MongoDB:", message);
-        process.exit(1);
+
+        // En serverless no hagas process.exit(1) (puede marcar crash)
+        if (!isServerlessRuntime()) {
+          process.exit(1);
+        }
       });
     } else {
       console.warn("⚠️ MONGO_URI no definido. Mongo desactivado.");
@@ -228,16 +245,17 @@ export function createApp() {
 
   app.locals.API_TOKENS_COUNT = API_TOKENS.length;
   app.locals.PORT = PORT;
+  app.locals.SERVERLESS = isServerlessRuntime();
 
   return { app, PORT, API_TOKENS };
 }
 
-// Export default app
+// Export default app (Vercel usa el handler de Express sin escuchar puerto)
 const { app, PORT, API_TOKENS } = createApp();
 export default app;
 
-// ✅ Arrancar servidor SOLO si no estamos en tests
-if (!isTestRun()) {
+// ✅ Arrancar servidor SOLO si estamos en local (NO serverless, NO tests)
+if (!isTestRun() && !isServerlessRuntime()) {
   app.listen(PORT, () => {
     console.log(`✅ GPT-backend corriendo en http://localhost:${PORT}`);
     console.log(`🔑 Tokens API permitidos: ${API_TOKENS.length}`);
