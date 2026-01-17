@@ -1,17 +1,28 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
+import { loadEnv } from "./schema.env";
+
+let isConnected = false;
 
 export async function connectToDatabase() {
-  const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/movingwallet'
+  if (isConnected) return;
+
+  const env = loadEnv();
+  const uri = env.MONGO_URI;
 
   if (!uri) {
-    throw new Error('No se encontró la URI de MongoDB en las variables de entorno')
+    // No reventamos: backend puede funcionar sin Mongo en muchos endpoints
+    console.warn("⚠️ MONGO_URI no definido. Mongo desactivado.");
+    return;
   }
 
-  try {
-    await mongoose.connect(uri)
-    console.log('✅ Conexión a MongoDB exitosa')
-  } catch (err) {
-    console.error('❌ Error al conectar con MongoDB:', err)
-    throw err
+  // Evitar múltiples conexiones en serverless
+  if (mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
   }
+
+  await mongoose.connect(uri);
+  isConnected = true;
+
+  console.log("✅ MongoDB conectado");
 }

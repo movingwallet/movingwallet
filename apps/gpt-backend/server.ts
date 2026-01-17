@@ -1,9 +1,11 @@
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+
+import type { Request, Response, NextFunction } from "express";
 
 import { connectToDatabase } from "./config/database";
 import { loadEnv } from "./config/schema.env";
@@ -40,11 +42,10 @@ import eventsRoute from "./routes/events";
 import githubIssuesRoute from "./routes/github/issues";
 import githubPrRoute from "./routes/github/pr";
 
-/**
- * ✅ ENV LOADING (monorepo-safe, root-only)
- * - ENV_PATH (override) if set
- * - repo root .env only
- */
+/* -------------------------------------------------- */
+/* Utils */
+/* -------------------------------------------------- */
+
 function loadEnvMonorepoSafe() {
   const loadedEnvPaths: string[] = [];
   const cwd = process.cwd();
@@ -55,19 +56,16 @@ function loadEnvMonorepoSafe() {
 
   const repoRootEnv = path.resolve(cwd, "../../.env");
 
-  // 1) ENV_PATH fuerza override
   if (envPathFromVar && fs.existsSync(envPathFromVar)) {
     dotenv.config({ path: envPathFromVar, override: true });
     loadedEnvPaths.push(envPathFromVar);
   }
 
-  // 2) raíz (sin override)
   if (fs.existsSync(repoRootEnv)) {
     dotenv.config({ path: repoRootEnv });
     loadedEnvPaths.push(repoRootEnv);
   }
 
-  // 3) fallback
   if (loadedEnvPaths.length === 0) {
     dotenv.config();
     loadedEnvPaths.push("process.env");
@@ -84,47 +82,37 @@ function isTestRun() {
   );
 }
 
-/**
- * ✅ Detecta runtime serverless (Vercel/Lambda)
- * En serverless NO debemos hacer app.listen()
- */
 function isServerlessRuntime() {
-  return (
-    process.env.VERCEL === "1" ||
-    process.env.AWS_LAMBDA_FUNCTION_NAME != null ||
-    process.env.LAMBDA_TASK_ROOT != null ||
-    process.env.NOW_REGION != null
-  );
+  return Boolean(process.env.VERCEL);
 }
 
-export function createApp() {
-  const loadedEnvPaths = loadEnvMonorepoSafe();
+/* -------------------------------------------------- */
+/* App factory */
+/* -------------------------------------------------- */
 
-  // Validar env DESPUÉS de dotenv
+export function createApp() {
+  const envLoadedFrom = loadEnvMonorepoSafe();
   const env = loadEnv();
 
   const API_TOKENS = (env.API_TOKENS || "")
     .split(",")
-    .map((s: string) => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 
   const PORT = env.PORT || 3000;
 
   const app = express();
 
-  // Para endpoints debug/estadoSistema
-  app.locals.envLoadedFrom = loadedEnvPaths;
+  app.locals.envLoadedFrom = envLoadedFrom;
+  app.locals.API_TOKENS_COUNT = API_TOKENS.length;
+  app.locals.SERVERLESS = isServerlessRuntime();
 
   app.set("trust proxy", 1);
 
-  // Base middleware
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));
 
-  /**
-   * ✅ TraceId global
-   */
   app.use((req: Request, res: Response, next: NextFunction) => {
     const traceId = crypto.randomUUID();
     (req as any).traceId = traceId;
@@ -132,59 +120,29 @@ export function createApp() {
     next();
   });
 
-  // Logger
   app.use(loggerMiddleware);
 
-  // Static
   app.use(express.static(path.join(process.cwd(), "public")));
 
-  /**
-   * ✅ Health (sin auth)
-   */
   app.get("/health", (req: Request, res: Response) => {
-    res.json({
-      status: "ok",
-      traceId: (req as any).traceId,
-    });
+    res.json({ status: "ok", traceId: (req as any).traceId });
   });
 
-  /**
-   * ✅ Mongo (opcional)
-   * Importante: en serverless NO hacemos process.exit(1)
-   */
-  if (!isTestRun()) {
-    if (env.MONGO_URI) {
-      connectToDatabase().catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("❌ Error MongoDB:", message);
-
-        if (!isServerlessRuntime()) {
-          process.exit(1);
-        }
-      });
-    } else {
-      console.warn("⚠️ MONGO_URI no definido. Mongo desactivado.");
-    }
+  if (!isTestRun() && env.MONGO_URI) {
+    connectToDatabase().catch((err) => {
+      console.error("❌ MongoDB error:", err);
+    });
   }
 
-  /**
-   * ✅ Auth bypass
-   */
   app.use((req: Request, res: Response, next: NextFunction) => {
     const p = req.path;
     const ou = req.originalUrl;
 
     if (
-      p === "/api/ping" ||
-      p === "/ping" ||
       p === "/health" ||
-      p === "/gpt-actions-openapi-bbdd.json" ||
-      p === "/api/debug/openai" ||
-      p === "/api/debug/diagnostics" ||
-      p === "/api/debug/ai" ||
-      ou.startsWith("/api/debug/openai") ||
-      ou.startsWith("/api/debug/diagnostics") ||
-      ou.startsWith("/api/debug/ai")
+      p === "/ping" ||
+      p === "/api/ping" ||
+      ou.startsWith("/api/debug")
     ) {
       return next();
     }
@@ -192,79 +150,46 @@ export function createApp() {
     return authMiddleware(req, res, next);
   });
 
-  // Routes
   app.use("/api", pingRoute);
   app.use("/api", githubRoute);
   app.use("/api", googleDocRoute);
   app.use("/api", routerInteligenteRoute);
-
   app.use("/api", crearEntradaDocRoute);
   app.use("/api", githubCommitsRoute);
-
   app.use("/api", gptPromptRoute);
   app.use("/api", gptGithubResumenRoute);
   app.use("/api", estadoSistemaRoute);
-
   app.use("/api", logsVistaRoute);
   app.use("/api", logsJsonRoute);
   app.use("/api", estadoRoute);
-
-  // Debug
   app.use("/api", openaiDebugRoute);
   app.use("/api", diagnosticsRoute);
   app.use("/api", aiDebugRoute);
-
-  // Events
   app.use("/api", eventsRoute);
-
-  // GitHub write
   app.use("/api", githubIssuesRoute);
   app.use("/api", githubPrRoute);
 
-  /**
-   * ✅ Error handler global (con traceId)
-   */
   app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     const traceId = (req as any).traceId;
-
-    const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : undefined;
-
-    console.error("❌ Error global:", {
-      traceId,
-      message,
-      stack,
-    });
-
-    res.status(500).json({
-      error: "Internal Server Error",
-      traceId,
-      details: env.NODE_ENV === "development" ? message : undefined,
-    });
+    console.error("❌ Global error:", err);
+    res.status(500).json({ error: "Internal Server Error", traceId });
   });
 
-  app.locals.API_TOKENS_COUNT = API_TOKENS.length;
-  app.locals.PORT = PORT;
-  app.locals.SERVERLESS = isServerlessRuntime();
-
-  return { app, PORT, API_TOKENS };
+  return { app, PORT };
 }
 
-// ✅ Crear app una sola vez por instancia
-const { app, PORT, API_TOKENS } = createApp();
+/* -------------------------------------------------- */
+/* Export para Vercel */
+/* -------------------------------------------------- */
 
-/**
- * ✅ Vercel (@vercel/node) espera (req, res).
- * Exportamos un handler por defecto.
- */
+const { app, PORT } = createApp();
+
 export default function handler(req: any, res: any) {
   return app(req, res);
 }
 
-// ✅ Arrancar servidor SOLO si estamos en local (NO serverless, NO tests)
-if (!isTestRun() && !isServerlessRuntime()) {
+if (!isServerlessRuntime() && !isTestRun()) {
   app.listen(PORT, () => {
-    console.log(`✅ GPT-backend corriendo en http://localhost:${PORT}`);
-    console.log(`🔑 Tokens API permitidos: ${API_TOKENS.length}`);
+    console.log(`✅ GPT-backend running on http://localhost:${PORT}`);
   });
 }

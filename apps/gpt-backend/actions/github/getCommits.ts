@@ -12,7 +12,7 @@ router.post("/github/commits", validateApiToken, async (req: Request, res: Respo
   }
 
   try {
-    const commits = await obtenerCommitsRepositorio(repoFullName, limit || 10);
+    const commits = await obtenerCommitsRepositorio(repoFullName);
     res.json({ commits });
   } catch (error) {
     console.error("❌ Error al obtener commits:", error);

@@ -6,9 +6,9 @@ export async function generarResumenRepositorio(repoFullName: string) {
   const resumen = {
     totalCommits: commits.length,
     ultimos: commits.slice(0, 5).map((commit) => ({
-      mensaje: commit.commit.message,
-      autor: commit.commit.author?.name,
-      fecha: commit.commit.author?.date,
+      mensaje: commit.mensaje,
+      autor: commit.autor,
+      fecha: commit.fecha,
     })),
   };
 
