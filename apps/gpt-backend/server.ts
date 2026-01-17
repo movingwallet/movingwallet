@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
@@ -125,16 +125,17 @@ export function createApp() {
 
   /**
    * ✅ TraceId global
+   * (tipos "any" para evitar conflictos de typings en Vercel)
    */
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use((req: any, res: any, next: any) => {
     const traceId = crypto.randomUUID();
-    (req as any).traceId = traceId;
+    req.traceId = traceId;
     res.setHeader("x-trace-id", traceId);
     next();
   });
 
   // Logger
-  app.use(loggerMiddleware);
+  app.use(loggerMiddleware as any);
 
   // Static
   app.use(express.static(path.join(process.cwd(), "public")));
@@ -142,10 +143,10 @@ export function createApp() {
   /**
    * ✅ Health (sin auth)
    */
-  app.get("/health", (req: Request, res: Response) => {
+  app.get("/health", (req: any, res: any) => {
     res.json({
       status: "ok",
-      traceId: (req as any).traceId,
+      traceId: req.traceId,
     });
   });
 
@@ -171,7 +172,7 @@ export function createApp() {
   /**
    * ✅ Auth bypass
    */
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use((req: any, res: any, next: any) => {
     const p = req.path;
     const ou = req.originalUrl;
 
@@ -190,43 +191,43 @@ export function createApp() {
       return next();
     }
 
-    return authMiddleware(req, res, next);
+    return (authMiddleware as any)(req, res, next);
   });
 
   // Routes
-  app.use("/api", pingRoute);
-  app.use("/api", githubRoute);
-  app.use("/api", googleDocRoute);
-  app.use("/api", routerInteligenteRoute);
+  app.use("/api", pingRoute as any);
+  app.use("/api", githubRoute as any);
+  app.use("/api", googleDocRoute as any);
+  app.use("/api", routerInteligenteRoute as any);
 
-  app.use("/api", crearEntradaDocRoute);
-  app.use("/api", githubCommitsRoute);
+  app.use("/api", crearEntradaDocRoute as any);
+  app.use("/api", githubCommitsRoute as any);
 
-  app.use("/api", gptPromptRoute);
-  app.use("/api", gptGithubResumenRoute);
-  app.use("/api", estadoSistemaRoute);
+  app.use("/api", gptPromptRoute as any);
+  app.use("/api", gptGithubResumenRoute as any);
+  app.use("/api", estadoSistemaRoute as any);
 
-  app.use("/api", logsVistaRoute);
-  app.use("/api", logsJsonRoute);
-  app.use("/api", estadoRoute);
+  app.use("/api", logsVistaRoute as any);
+  app.use("/api", logsJsonRoute as any);
+  app.use("/api", estadoRoute as any);
 
   // Debug
-  app.use("/api", openaiDebugRoute);
-  app.use("/api", diagnosticsRoute);
-  app.use("/api", aiDebugRoute);
+  app.use("/api", openaiDebugRoute as any);
+  app.use("/api", diagnosticsRoute as any);
+  app.use("/api", aiDebugRoute as any);
 
   // Events
-  app.use("/api", eventsRoute);
+  app.use("/api", eventsRoute as any);
 
   // GitHub write
-  app.use("/api", githubIssuesRoute);
-  app.use("/api", githubPrRoute);
+  app.use("/api", githubIssuesRoute as any);
+  app.use("/api", githubPrRoute as any);
 
   /**
    * ✅ Error handler global (con traceId)
    */
-  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
-    const traceId = (req as any).traceId;
+  app.use((err: unknown, req: any, res: any, _next: any) => {
+    const traceId = req?.traceId;
 
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
@@ -259,6 +260,7 @@ const { app, PORT, API_TOKENS } = createApp();
  * Express se envuelve con serverless-http
  */
 export const handler = serverless(app);
+export default handler;
 
 // ✅ Arrancar servidor SOLO si estamos en local (NO serverless, NO tests)
 if (!isTestRun() && !isServerlessRuntime()) {
