@@ -250,9 +250,16 @@ export function createApp() {
   return { app, PORT, API_TOKENS };
 }
 
-// Export default app (Vercel puede usar Express app como handler)
+// ✅ Crear app una sola vez por instancia
 const { app, PORT, API_TOKENS } = createApp();
-export default app;
+
+/**
+ * ✅ Vercel (@vercel/node) espera un handler (req,res),
+ * no un "app" exportado directamente.
+ */
+export default function handler(req: any, res: any) {
+  return app(req, res);
+}
 
 // ✅ Arrancar servidor SOLO si estamos en local (NO serverless, NO tests)
 if (!isTestRun() && !isServerlessRuntime()) {
@@ -261,3 +268,4 @@ if (!isTestRun() && !isServerlessRuntime()) {
     console.log(`🔑 Tokens API permitidos: ${API_TOKENS.length}`);
   });
 }
+
