@@ -20,71 +20,49 @@ on:
 jobs:
   explain:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: "Download smoke artifacts (if present)"
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 📥 Download smoke artifacts
         uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: backend-smoke-logs
           path: logs
 
-      - name: "Build message from artifacts + send Pushover"
+      - name: 🧠 Classify smoke failure
+        run: |
+          node .github/scripts/classify-smoke-failure.mjs logs > classification.json
+          cat classification.json
+
+      - name: 🧾 Build message files (title/body)
+        run: |
+          node -e "const fs=require('fs'); const c=JSON.parse(fs.readFileSync('classification.json','utf-8')); const title=\`[\${c.code}] \${c.title}\`; const steps=(c.nextSteps||[]).map(s=>'• '+s).join('\n'); const body=(\`\${c.summary}\n\nprovider=\${c.provider}\nexpectedEnv=\${c.expectedEnv}\nhasKey=\${c.hasKey}\n\nNext steps:\n\${steps}\n\nrepo=${{ github.repository }}\nbranch=${{ github.ref_name }}\nsha=${{ github.sha }}\nrun=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\`).trim(); fs.writeFileSync('pushover_title.txt',title); fs.writeFileSync('pushover_body.txt',body); console.log('TITLE:\\n'+title+'\\n'); console.log('BODY:\\n'+body);"
+
+      - name: 🚨 Send Pushover notification (if configured)
         env:
-          REASON: ${{ inputs.reason }}
-          AI_PROVIDER: ${{ inputs.ai_provider }}
           PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
           PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          SERVER_URL: ${{ github.server_url }}
-          REF_NAME: ${{ github.ref_name }}
-          SHA: ${{ github.sha }}
         run: |
           set -e
 
-          RUN_URL="${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}"
-          TITLE="CI failed: ${REPO}"
-          BODY=""
-
-          DEBUG_JSON="logs/debug-ai.json"
-          LOG_FILE="logs/backend-smoke.log"
-
-          if [ -f "$DEBUG_JSON" ]; then
-            BODY="$(node - <<'NODE'
-            const fs = require("fs");
-            const d = JSON.parse(fs.readFileSync("logs/debug-ai.json","utf-8"));
-            const lines = [];
-            if (d.provider) lines.push(`provider=${d.provider}`);
-            if (typeof d.hasKey !== "undefined") lines.push(`hasKey=${d.hasKey}`);
-            if (d.expectedEnvVar) lines.push(`expected=${d.expectedEnvVar}`);
-            if (d.openai?.model) lines.push(`model=${d.openai.model}`);
-            if (d.openai?.circuitBreaker?.state) lines.push(`circuit=${d.openai.circuitBreaker.state}`);
-            console.log(lines.join("\n") || "debug-ai.json present but no fields recognized");
-            NODE
-            )"
-          elif [ -f "$LOG_FILE" ]; then
-            tail -n 120 "$LOG_FILE" > last.log || true
-            BODY="Smoke backend failed.\n(Showing last 120 lines)\n\n$(cat last.log)"
-          else
-            BODY="Smoke backend failed.\nNo artifacts available."
-          fi
-
-          BODY="${BODY}\n\nreason=${REASON}\nai_provider=${AI_PROVIDER}\nbranch=${REF_NAME}\nsha=${SHA}\nrun=${RUN_URL}"
-
-          echo "---- MESSAGE ----"
-          echo "$BODY"
-          echo "-----------------"
-
-          if [ -n "$PUSHOVER_APP_TOKEN" ] && [ -n "$PUSHOVER_USER_KEY" ]; then
-            curl -s \
-              --form-string "token=${PUSHOVER_APP_TOKEN}" \
-              --form-string "user=${PUSHOVER_USER_KEY}" \
-              --form-string "title=${TITLE}" \
-              --form-string "message=${BODY}" \
-              --form-string "url=${RUN_URL}" \
-              --form-string "url_title=Open CI run" \
-              https://api.pushover.net/1/messages.json
-          else
+          if [ -z "$PUSHOVER_APP_TOKEN" ] || [ -z "$PUSHOVER_USER_KEY" ]; then
             echo "Pushover secrets not set. Skipping notification."
+            exit 0
           fi
+
+          TITLE="$(cat pushover_title.txt)"
+          BODY="$(cat pushover_body.txt)"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -s \
+            --form-string "token=$PUSHOVER_APP_TOKEN" \
+            --form-string "user=$PUSHOVER_USER_KEY" \
+            --form-string "title=$TITLE" \
+            --form-string "message=$BODY" \
+            --form-string "url=$RUN_URL" \
+            --form-string "url_title=Open CI run" \
+            https://api.pushover.net/1/messages.json
