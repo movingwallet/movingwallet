@@ -31,15 +31,16 @@ apps/*/.vercel/
 
 # 📊 Cobertura de tests
 coverage/
+test-results/
 .nyc_output/
 .vitest/
 cypress/videos/
 cypress/screenshots/
 
 # 🧪 Tests y snapshots
-__tests__/
-*.test.ts
-*.spec.ts
+# __tests__/
+# *.test.ts  ← COMENTADO: los tests deben estar en el repo
+# *.spec.ts  ← COMENTADO: los tests deben estar en el repo
 *.snap
 
 # ⚙️ IDEs y configuraciones locales
