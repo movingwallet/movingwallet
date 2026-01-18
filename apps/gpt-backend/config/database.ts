@@ -21,8 +21,13 @@ export async function connectToDatabase() {
     return;
   }
 
-  await mongoose.connect(uri);
-  isConnected = true;
-
-  console.log("✅ MongoDB conectado");
+  try {
+    await mongoose.connect(uri);
+    isConnected = true;
+    console.log("✅ MongoDB conectado");
+  } catch (error) {
+    console.error("❌ Error conectando a MongoDB:", error);
+    // No reventamos el servidor, permitimos que funcione sin Mongo
+    // pero sí registramos el error para debugging
+  }
 }
