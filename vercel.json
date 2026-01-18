@@ -1,8 +1,18 @@
 {
   "version": 2,
+  "installCommand": "pnpm install",
+  "buildCommand": null,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/:path*",
+      "destination": "/api"
+    },
+    {
+      "source": "/health",
+      "destination": "/api"
+    },
+    {
+      "source": "/ping",
       "destination": "/api"
     }
   ],
