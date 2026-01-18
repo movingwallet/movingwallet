@@ -6,7 +6,7 @@ import fs from "fs";
 import crypto from "crypto";
 
 /* -------------------------------------------------- */
-/* Utils */
+/* Utils - Verificación de deployment */
 /* -------------------------------------------------- */
 
 function loadEnvMonorepoSafe() {
