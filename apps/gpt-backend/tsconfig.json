@@ -19,9 +19,6 @@
   "include": ["**/*.ts"],
   "exclude": [
     "node_modules",
-    "dist",
-    "_routes_OLD",
-    "_middleware_OLD",
-    "_actions_OLD"
+    "dist"
   ]
 }
