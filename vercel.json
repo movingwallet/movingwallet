@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/apps/gpt-backend/api/index.ts"
+      "destination": "/api"
     }
   ],
   "functions": {
-    "apps/gpt-backend/api/index.ts": {
+    "api/index.ts": {
       "memory": 1024,
       "maxDuration": 30
     }
