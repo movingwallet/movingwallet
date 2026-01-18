@@ -31,6 +31,7 @@ apps/*/.vercel/
 
 # 📊 Cobertura de tests
 coverage/
+test-results/
 .nyc_output/
 .vitest/
 cypress/videos/

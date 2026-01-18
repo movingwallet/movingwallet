@@ -34,10 +34,10 @@ export function loadEnv() {
     OPENAI_MODEL: str({ default: "gpt-4o-mini" }),
     OPENAI_BASE_URL: str({ default: "" }),
 
-    // Otros (si existían)
-    PINECONE_API_KEY: str({ default: "" }),
-    PINECONE_ENVIRONMENT: str({ default: "" }),
-    PINECONE_INDEX_NAME: str({ default: "" }),
+    // Anthropic (Claude)
+    ANTHROPIC_API_KEY: str({ default: "" }),
+
+    // GitHub
     GITHUB_TOKEN: str({ default: "" }),
   });
 }
