@@ -98,7 +98,7 @@ export function createApp() {
   });
 
   // Debug AI endpoint
-  app.post("/api/debug/ai", (req: any, res: any) => {
+  app.get("/api/debug/ai", (req: any, res: any) => {
     const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
     const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
     const hasGitHub = Boolean(process.env.GITHUB_TOKEN);
