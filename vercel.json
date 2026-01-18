@@ -1,19 +1,23 @@
 {
   "version": 2,
-  "builds": [
+  "installCommand": "pnpm install",
+  "buildCommand": null,
+  "rewrites": [
     {
-      "src": "apps/gpt-backend/api/index.ts",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
+      "source": "/api/:path*",
+      "destination": "/api"
+    },
     {
-      "src": "/(.*)",
-      "dest": "apps/gpt-backend/api/index.ts"
+      "source": "/health",
+      "destination": "/api"
+    },
+    {
+      "source": "/ping",
+      "destination": "/api"
     }
   ],
   "functions": {
-    "apps/gpt-backend/api/index.ts": {
+    "api/index.ts": {
       "memory": 1024,
       "maxDuration": 30
     }
