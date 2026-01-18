@@ -5,6 +5,8 @@
  * and our monorepo structure at apps/gpt-backend/
  */
 
-import handler from "../apps/gpt-backend/server";
+import { createApp } from "../apps/gpt-backend/server.js";
 
-export default handler;
+const { app } = createApp();
+
+export default app;
